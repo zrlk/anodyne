@@ -12,13 +12,5 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-cmake_minimum_required(VERSION 3.1.0 FATAL_ERROR)
-set(CMAKE_CXX_STANDARD 11)
-include_directories(${CMAKE_BINARY_DIR} .)
-
-set(Z3_BUILD_PATH "${CMAKE_SOURCE_DIR}/../z3/build" CACHE STRING "Path to z3 build directory")
-
-add_subdirectory(ast)
-add_subdirectory(cli)
-add_subdirectory(lexparse)
-add_subdirectory(util)
+add_library(ast lua.cc)
+target_link_libraries(ast util)

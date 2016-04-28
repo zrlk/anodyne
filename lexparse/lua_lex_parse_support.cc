@@ -14,297 +14,7 @@
  * limitations under the License.
  */
 
-#include "lua_lex.h"
-
-namespace lua {
-void Var::Dump(const st::SymbolTable &symbol_table,
-               st::PrettyPrinter *printer) {
-  const auto &text = symbol_table.text(symbol_);
-  printer->Print(text);
-}
-
-void Tuple::Dump(const st::SymbolTable &symbol_table,
-                 st::PrettyPrinter *printer) {
-  for (size_t v = 0; v < element_count_; ++v) {
-    elements_[v]->Dump(symbol_table, printer);
-    if (v + 1 < element_count_) {
-      printer->Print(", ");
-    }
-  }
-}
-
-void Tuple::DumpAsStmts(const st::SymbolTable &symbol_table,
-                        st::PrettyPrinter *printer) {
-  for (size_t v = 0; v < element_count_; ++v) {
-    elements_[v]->Dump(symbol_table, printer);
-    if (v + 1 < element_count_) {
-      printer->Print(";\n");
-    }
-  }
-}
-
-void Literal::Dump(const st::SymbolTable &symbol_table,
-                   st::PrettyPrinter *printer) {
-  switch (type_) {
-    case Literal::Type::String: {
-      const auto &text = symbol_table.text(symbol_);
-      printer->Print("\"");
-      printer->Print(text);
-      printer->Print("\"");
-      break;
-    }
-    case Literal::Type::Number: {
-      const auto &text = symbol_table.text(symbol_);
-      printer->Print(text);
-      break;
-    }
-    case Literal::Type::Nil:
-      printer->Print("nil");
-      break;
-    case Literal::Type::True:
-      printer->Print("true");
-      break;
-    case Literal::Type::False:
-      printer->Print("false");
-      break;
-  }
-}
-
-void Function::Dump(const st::SymbolTable &symbol_table,
-                    st::PrettyPrinter *printer) {
-  printer->Print("(");
-  bindings_->Dump(symbol_table, printer);
-  if (varargs_) {
-    if (bindings_->size()) {
-      printer->Print(", ");
-    }
-    printer->Print("...");
-  }
-  printer->Print(") ");
-  body_->Dump(symbol_table, printer);
-}
-
-void While::Dump(const st::SymbolTable &symbol_table,
-                 st::PrettyPrinter *printer) {
-  printer->Print("while ");
-  condition_->Dump(symbol_table, printer);
-  block_->Dump(symbol_table, printer);
-}
-
-void If::Dump(const st::SymbolTable &symbol_table, st::PrettyPrinter *printer) {
-  printer->Print("if ");
-  exp_->Dump(symbol_table, printer);
-  printer->Print(" then ");
-  then_->Dump(symbol_table, printer);
-  printer->Print(" ");
-  elseives_->DumpAsStmts(symbol_table, printer);
-  printer->Print("else ");
-  else_->Dump(symbol_table, printer);
-  printer->Print(" end");
-}
-
-void ElseIf::Dump(const st::SymbolTable &symbol_table,
-                  st::PrettyPrinter *printer) {
-  printer->Print("elseif ");
-  exp_->Dump(symbol_table, printer);
-  printer->Print(" then ");
-  block_->Dump(symbol_table, printer);
-  printer->Print(" ");
-}
-
-void ArgsReference::Dump(const st::SymbolTable &symbol_table,
-                         st::PrettyPrinter *printer) {
-  printer->Print("...");
-}
-
-// TODO: use precedence to add parens.
-void UnaryOp::Dump(const st::SymbolTable &symbol_table,
-                   st::PrettyPrinter *printer) {
-  switch (op_) {
-    case UnaryOp::Op::Not:
-      printer->Print("not");
-      break;
-    case UnaryOp::Op::Length:
-      printer->Print("#");
-      break;
-    case UnaryOp::Op::Negate:
-      printer->Print("-");
-      break;
-  }
-  operand_->Dump(symbol_table, printer);
-}
-
-// TODO: use precedence to add parens.
-void BinaryOp::Dump(const st::SymbolTable &symbol_table,
-                    st::PrettyPrinter *printer) {
-  lhs_->Dump(symbol_table, printer);
-  switch (op_) {
-    case BinaryOp::Op::Or:
-      printer->Print(" or ");
-      break;
-    case BinaryOp::Op::And:
-      printer->Print(" and ");
-      break;
-    case BinaryOp::Op::LessThan:
-      printer->Print(" < ");
-      break;
-    case BinaryOp::Op::LessThanEqual:
-      printer->Print(" <= ");
-      break;
-    case BinaryOp::Op::GreaterThan:
-      printer->Print(" > ");
-      break;
-    case BinaryOp::Op::GreaterThanEqual:
-      printer->Print(" >= ");
-      break;
-    case BinaryOp::Op::NotEqual:
-      printer->Print(" ~= ");
-      break;
-    case BinaryOp::Op::Equal:
-      printer->Print(" == ");
-      break;
-    case BinaryOp::Op::Concatenate:
-      printer->Print(" .. ");
-      break;
-    case BinaryOp::Op::Add:
-      printer->Print(" + ");
-      break;
-    case BinaryOp::Op::Subtract:
-      printer->Print(" - ");
-      break;
-    case BinaryOp::Op::Multiply:
-      printer->Print(" * ");
-      break;
-    case BinaryOp::Op::Divide:
-      printer->Print(" / ");
-      break;
-    case BinaryOp::Op::Modulo:
-      printer->Print(" % ");
-      break;
-    case BinaryOp::Op::Exponent:
-      printer->Print(" ^ ");
-      break;
-  }
-  rhs_->Dump(symbol_table, printer);
-}
-
-void DirectIndex::Dump(const st::SymbolTable &symbol_table,
-                       st::PrettyPrinter *printer) {
-  lhs_->Dump(symbol_table, printer);
-  const auto &text = symbol_table.text(subscript_);
-  printer->Print(".");
-  printer->Print(text);
-}
-
-void Index::Dump(const st::SymbolTable &symbol_table,
-                 st::PrettyPrinter *printer) {
-  lhs_->Dump(symbol_table, printer);
-  printer->Print("[");
-  subscript_->Dump(symbol_table, printer);
-  printer->Print("]");
-}
-
-void Call::Dump(const st::SymbolTable &symbol_table,
-                st::PrettyPrinter *printer) {
-  function_->Dump(symbol_table, printer);
-  if (member_) {
-    const auto &text = symbol_table.text(symbol_);
-    printer->Print(":");
-    printer->Print(text);
-  }
-  printer->Print("(");
-  args_->Dump(symbol_table, printer);
-  printer->Print(")");
-}
-
-// TODO: ensure we obey the grammar when pretty-printing.
-void FunctionBinding::Dump(const st::SymbolTable &symbol_table,
-                           st::PrettyPrinter *printer) {
-  switch (kind_) {
-    case FunctionBinding::Kind::Local: {
-      const auto &text = symbol_table.text(symbol_);
-      printer->Print("local function ");
-      printer->Print(text);
-      printer->Print(" ");
-    } break;
-    case FunctionBinding::Kind::Global: {
-      printer->Print("function ");
-      path_->Dump(symbol_table, printer);
-      printer->Print(" ");
-    } break;
-    case FunctionBinding::Kind::GlobalMember: {
-      const auto &text = symbol_table.text(symbol_);
-      printer->Print("function ");
-      path_->Dump(symbol_table, printer);
-      printer->Print(":");
-      printer->Print(text);
-      printer->Print(" ");
-    } break;
-  }
-  body_->Dump(symbol_table, printer);
-}
-
-void VarBinding::Dump(const st::SymbolTable &symbol_table,
-                      st::PrettyPrinter *printer) {
-  if (local_) {
-    printer->Print("local ");
-  }
-  vars_->Dump(symbol_table, printer);
-  if (inits_->size()) {
-    printer->Print(" = ");
-    inits_->Dump(symbol_table, printer);
-  }
-}
-
-void Block::Dump(const st::SymbolTable &symbol_table,
-                 st::PrettyPrinter *printer) {
-  printer->Print("do\n");
-  stmts_->DumpAsStmts(symbol_table, printer);
-  switch (kind_) {
-    case Block::Kind::ReturnExp:
-      printer->Print("return ");
-      return_exps_->Dump(symbol_table, printer);
-      printer->Print("\n");
-      break;
-    case Block::Kind::Break:
-      printer->Print("break\n");
-      break;
-    case Block::Kind::ReturnNone:
-      printer->Print("return\n");
-      break;
-    default:
-      break;
-  }
-  printer->Print("end\n");
-}
-
-void TableConstructor::Dump(const st::SymbolTable &symbol_table,
-                            st::PrettyPrinter *printer) {
-  printer->Print("{");
-  fields_->DumpAsStmts(symbol_table, printer);
-  printer->Print("}");
-}
-
-void Field::Dump(const st::SymbolTable &symbol_table,
-                 st::PrettyPrinter *printer) {
-  switch (kind_) {
-    case Field::Kind::Label: {
-      const auto &text = symbol_table.text(symbol_);
-      printer->Print(text);
-      printer->Print(" = ");
-      break;
-    }
-    case Field::Kind::Bracket:
-      printer->Print("[");
-      index_->Dump(symbol_table, printer);
-      printer->Print("] = ");
-      break;
-    default:
-      break;
-  }
-  exp_->Dump(symbol_table, printer);
-}
-}
+#include "lexparse/lua_lex.h"
 
 namespace lexparse {
 void LuaParser::AppendChunk(lua::Node *node) {
@@ -328,36 +38,36 @@ lua::Node **LuaParser::PopNodes(size_t count) {
 }
 
 lua::Tuple *LuaParser::PopTuple(size_t count) {
-  return new (arena_) lua::Tuple(yy::location(), count, PopNodes(count));
+  return new (arena_) lua::Tuple(util::SourceRange(), count, PopNodes(count));
 }
 
-lua::DirectIndex *LuaParser::CreateDirectIndex(const yy::location &location,
-                                               lua::Node *lhs,
-                                               const std::string &for_text) {
+lua::DirectIndex *LuaParser::CreateDirectIndex(
+    const util::SourceRange &location, lua::Node *lhs,
+    const std::string &for_text) {
   return new (arena_)
       lua::DirectIndex(location, lhs, symbol_table_->intern(for_text));
 }
 
-lua::Call *LuaParser::CreateMemberCall(const yy::location &location,
+lua::Call *LuaParser::CreateMemberCall(const util::SourceRange &location,
                                        lua::Node *function, lua::Tuple *args,
                                        const std::string &for_text) {
   return new (arena_)
       lua::Call(location, function, args, symbol_table_->intern(for_text));
 }
 
-lua::Literal *LuaParser::CreateNumberLiteral(const yy::location &location,
+lua::Literal *LuaParser::CreateNumberLiteral(const util::SourceRange &location,
                                              const std::string &for_text) {
   return new (arena_) lua::Literal(location, lua::Literal::Type::Number,
                                    symbol_table_->intern(for_text));
 }
 
-lua::Literal *LuaParser::CreateStringLiteral(const yy::location &location,
+lua::Literal *LuaParser::CreateStringLiteral(const util::SourceRange &location,
                                              const std::string &for_text) {
   return new (arena_) lua::Literal(location, lua::Literal::Type::String,
                                    symbol_table_->intern(for_text));
 }
 
-lua::Var *LuaParser::CreateVar(const yy::location &location,
+lua::Var *LuaParser::CreateVar(const util::SourceRange &location,
                                const std::string &for_text) {
   return new (arena_) lua::Var(location, symbol_table_->intern(for_text));
 }
@@ -373,7 +83,7 @@ lua::Var *LuaParser::CreateVar(const yy::location &location,
   (e.g., if the repeat block has a terminator, the until expression isn't
   evaluated.)
 */
-lua::Node *LuaParser::DesugarRepeat(const yy::location &location,
+lua::Node *LuaParser::DesugarRepeat(const util::SourceRange &location,
                                     lua::Block *block, lua::Node *condition) {
   if (block->kind() == lua::Block::Kind::NoTerminator) {
     auto *true_cond =
@@ -409,7 +119,7 @@ lua::Node *LuaParser::DesugarRepeat(const yy::location &location,
        end
      end
 */
-lua::Node *LuaParser::DesugarFor(const yy::location &location,
+lua::Node *LuaParser::DesugarFor(const util::SourceRange &location,
                                  lua::Tuple *namelist, lua::Tuple *explist,
                                  lua::Node *block) {
   auto *f = CreateUnutterableVar(location, "f");
@@ -476,7 +186,7 @@ lua::Node *LuaParser::DesugarFor(const yy::location &location,
     custom error
   e.g., error() (and similarly, tonumber()) aren't looked up in the context.
 */
-lua::Node *LuaParser::DesugarFor(const yy::location &location, lua::Var *v,
+lua::Node *LuaParser::DesugarFor(const util::SourceRange &location, lua::Var *v,
                                  lua::Node *init, lua::Node *limit,
                                  lua::Node *step, lua::Node *block) {
   PushNode(init);
@@ -602,7 +312,7 @@ bool LuaParser::ParseFile(const std::string &filename) {
   return result == 0 && !had_errors_;
 }
 
-void LuaParser::Error(const yy::location &location,
+void LuaParser::Error(const util::SourceRange &location,
                       const std::string &message) {
   // TODO: replace with a PrettyPrinter
   std::cerr << location << ": " << message << std::endl;

@@ -12,4 +12,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-add_library(util util.cc pretty_printer.cc)
+add_library(util util.cc pretty_printer.cc location.cc)

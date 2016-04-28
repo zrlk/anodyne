@@ -29,7 +29,7 @@ blank [ \t]
 
 %{
   // Code run each time a pattern is matched.
-  #define YY_USER_ACTION  yylloc->columns(yyleng); loc_ofs += yyleng;
+  #define YY_USER_ACTION  *yylloc = ::util::SourceRange(yylloc->file(), yylloc->begin(), yylloc->end().offset(yyleng)); loc_ofs += yyleng;
 %}
 
 /* The lexer has the following states:
@@ -40,12 +40,12 @@ blank [ \t]
 
 %{
   // Code run each time yylex is called.
-  yylloc->step();
+  *yylloc = ::util::SourceRange(yylloc->file(), yylloc->end(), yylloc->end());
 %}
 
 <INITIAL>{
-{blank}+ yylloc->step();
-\n       { yylloc->lines(yyleng); yylloc->step(); }
+{blank}+ *yylloc = ::util::SourceRange(yylloc->file(), yylloc->end(), yylloc->end());
+\n       *yylloc = ::util::SourceRange(yylloc->file(), yylloc->end().offset_lines(yyleng), yylloc->end().offset_lines(yyleng));
 "("      return yy::LuaParserImpl::token::LPAREN;
 ")"      return yy::LuaParserImpl::token::RPAREN;
 "{"      return yy::LuaParserImpl::token::LBRACE;
@@ -160,7 +160,7 @@ void LuaParser::ScanBeginFile(bool trace_scanning) {
   }
 }
 
-void LuaParser::ScanEnd(const yy::location &eof_loc,
+void LuaParser::ScanEnd(const ::util::SourceRange &eof_loc,
                         size_t eof_loc_ofs) {
   if (stringBufferState) {
     yy_delete_buffer(stringBufferState);

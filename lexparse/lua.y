@@ -33,9 +33,11 @@ class LuaParser;
 %parse-param { ::lexparse::LuaParser &context }
 %lex-param { ::lexparse::LuaParser &context }
 %locations
+%define api.location.type {util::SourceRange}
 %initial-action
 {
-  @$.initialize(&context.file());
+  @$ = ::util::SourceRange(&context.file(), ::util::SourceLocation(1, 1),
+                           ::util::SourceLocation(1, 1));
 };
 %define "parse.trace"
 %{

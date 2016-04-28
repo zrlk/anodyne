@@ -35,9 +35,10 @@ class LuaParser {
         symbol_table_(symbol_table),
         trace_lex_(trace_lex),
         trace_parse_(trace_parse) {
-    empty_tuple_ = new (arena_) lua::Tuple(yy::location(), 0, nullptr);
-    primitive_error_ = CreateUnutterableVar(yy::location(), "$error");
-    primitive_tonumber_ = CreateUnutterableVar(yy::location(), "$tonumber");
+    empty_tuple_ = new (arena_) lua::Tuple(util::SourceRange(), 0, nullptr);
+    primitive_error_ = CreateUnutterableVar(util::SourceRange(), "$error");
+    primitive_tonumber_ =
+        CreateUnutterableVar(util::SourceRange(), "$tonumber");
   }
 
   /// \param filename The filename of the file to load
@@ -58,21 +59,22 @@ class LuaParser {
     return symbol_table_->intern(for_text);
   }
 
-  lua::Var *CreateVar(const yy::location &location,
+  lua::Var *CreateVar(const util::SourceRange &location,
                       const std::string &for_text);
-  lua::Var *CreateUnutterableVar(const yy::location &location,
+  lua::Var *CreateUnutterableVar(const util::SourceRange &location,
                                  const std::string &debug_text) {
     return CreateVar(location, "$" + debug_text);
   }
-  lua::DirectIndex *CreateDirectIndex(const yy::location &location,
+  lua::DirectIndex *CreateDirectIndex(const util::SourceRange &location,
                                       lua::Node *lhs,
                                       const std::string &for_text);
-  lua::Call *CreateMemberCall(const yy::location &location, lua::Node *function,
-                              lua::Tuple *args, const std::string &for_text);
+  lua::Call *CreateMemberCall(const util::SourceRange &location,
+                              lua::Node *function, lua::Tuple *args,
+                              const std::string &for_text);
 
-  lua::Literal *CreateStringLiteral(const yy::location &location,
+  lua::Literal *CreateStringLiteral(const util::SourceRange &location,
                                     const std::string &for_text);
-  lua::Literal *CreateNumberLiteral(const yy::location &location,
+  lua::Literal *CreateNumberLiteral(const util::SourceRange &location,
                                     const std::string &for_text);
 
   /// \brief Unescapes a string literal (which is expected to include
@@ -105,7 +107,7 @@ class LuaParser {
   /// \pre yytext matches .*\]\=*\]
   /// \return true if we've exited the range; if so, we'll set out and
   /// was_comment.
-  bool ExitRawRegion(const char *yytext, const yy::location &loc,
+  bool ExitRawRegion(const char *yytext, const util::SourceRange &loc,
                      bool *was_comment, std::string *out) {
     if (trace_lex_) {
       fprintf(stderr, "ExitRawRegion(%s)\n", yytext);
@@ -143,7 +145,7 @@ class LuaParser {
 
   /// \brief Called by the lexer to save the end location of the current file
   /// or buffer.
-  void save_eof(const yy::location &eof, size_t eof_ofs) {
+  void save_eof(const util::SourceRange &eof, size_t eof_ofs) {
     last_eof_ = eof;
     last_eof_ofs_ = eof_ofs;
   }
@@ -160,11 +162,11 @@ class LuaParser {
   lua::Tuple *PopCallArgs(size_t node_count) { return PopTuple(node_count); }
   void PushNode(lua::Node *node);
 
-  lua::Node *DesugarRepeat(const yy::location &location, lua::Block *block,
+  lua::Node *DesugarRepeat(const util::SourceRange &location, lua::Block *block,
                            lua::Node *condition);
-  lua::Node *DesugarFor(const yy::location &location, lua::Tuple *namelist,
+  lua::Node *DesugarFor(const util::SourceRange &location, lua::Tuple *namelist,
                         lua::Tuple *explist, lua::Node *block);
-  lua::Node *DesugarFor(const yy::location &location, lua::Var *var,
+  lua::Node *DesugarFor(const util::SourceRange &location, lua::Var *var,
                         lua::Node *init, lua::Node *limit, lua::Node *step,
                         lua::Node *block);
 
@@ -178,7 +180,7 @@ class LuaParser {
   std::string file_ = "stdin";
 
   /// Save the end-of-file location from the lexer.
-  yy::location last_eof_;
+  util::SourceRange last_eof_;
   size_t last_eof_ofs_;
 
   /// Did we encounter errors during lexing or parsing?
@@ -199,12 +201,12 @@ class LuaParser {
   lua::Node *primitive_tonumber_ = nullptr;
 
   /// \note Implemented by generated code care of flex.
-  static int lex(YYSTYPE *, yy::location *, LuaParser &context);
+  static int lex(YYSTYPE *, util::SourceRange *, LuaParser &context);
 
   /// \brief Used by the lexer and parser to report errors.
   /// \param location Source location where an error occurred.
   /// \param message Text of the error.
-  void Error(const yy::location &location, const std::string &message);
+  void Error(const util::SourceRange &location, const std::string &message);
 
   /// \brief Used by the lexer and parser to report errors.
   /// \param message Text of the error.
@@ -220,7 +222,7 @@ class LuaParser {
 
   /// \brief Handles end-of-scan actions and destroys any buffers.
   /// \note Implemented in `lua.l`.
-  void ScanEnd(const yy::location &eof_loc, size_t eof_loc_ofs);
+  void ScanEnd(const util::SourceRange &eof_loc, size_t eof_loc_ofs);
 };
 }
 
