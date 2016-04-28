@@ -14,14 +14,14 @@
  * limitations under the License.
  */
 
-#ifndef LEXPARSE_LUA_LEX_H_
-#define LEXPARSE_LUA_LEX_H_
+#ifndef LEXPARSE_LUA_PARSER_H_
+#define LEXPARSE_LUA_PARSER_H_
 
 namespace yy {
 class LuaParserImpl;
 }
 
-#include "lexparse/lua_parse.h"
+#include "lexparse/lua_bison_support.h"
 #include "lexparse/lua_parse.hh"
 
 namespace lexparse {

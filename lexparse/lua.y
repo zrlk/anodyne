@@ -21,7 +21,7 @@
  * limitations under the License.
  */
 #include <string>
-#include "lexparse/lua_parse.h"
+#include "lexparse/lua_bison_support.h"
 #ifdef yylex
 #undef yylex
 #endif
@@ -41,7 +41,7 @@ class LuaParser;
 };
 %define "parse.trace"
 %{
-#include "lexparse/lua_lex.h"
+#include "lexparse/lua_parser.h"
 #define newAst new (context.arena_) lua::
 %}
 %token

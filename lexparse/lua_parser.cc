@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include "lexparse/lua_lex.h"
+#include "lexparse/lua_parser.h"
 
 namespace lexparse {
 void LuaParser::AppendChunk(lua::Node *node) {

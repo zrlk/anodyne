@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-#include "lexparse/lua_lex.h"
+#include <iostream>
+#include "lexparse/lua_parser.h"
 #include "util/pretty_printer.h"
 #include "util/trees.h"
-#include <iostream>
 
 int main(int argc, char** argv) {
   st::Arena arena;

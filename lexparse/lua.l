@@ -16,7 +16,7 @@
  */
 // Started from the calc++ example code as part of the Bison-3.0 distribution.
 // assertions.h
-#include "lexparse/lua_lex.h"
+#include "lexparse/lua_parser.h"
 #include <assert.h>
 
 // The offset of the current token (as byte offset).
