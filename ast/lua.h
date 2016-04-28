@@ -17,7 +17,6 @@
 #ifndef AST_LUA_H_
 #define AST_LUA_H_
 
-#include <string>
 #include "util/location.h"
 #include "util/pretty_printer.h"
 #include "util/trees.h"

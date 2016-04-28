@@ -12,5 +12,5 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-add_library(ast lua.cc)
+add_library(ast lua.cc systemd.cc)
 target_link_libraries(ast util)

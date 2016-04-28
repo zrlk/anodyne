@@ -130,7 +130,6 @@ class ArenaObject {
   void operator delete(void *, size_t) { abort(); }
   void operator delete(void *ptr, Arena *arena) { abort(); }
 };
-
 }  // namespace st
 
 #endif  // UTIL_TREES_H_
