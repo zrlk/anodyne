@@ -13,4 +13,10 @@
 # limitations under the License.
 
 add_executable(cli cli.cc)
-target_link_libraries(cli util lua_lex_parse ${Z3_BUILD_PATH}/libz3.a)
+target_link_libraries(cli util lua_lex_parse)
+IF(NOT MSVC)
+  target_link_libraries(cli ${Z3_BUILD_PATH}/libz3.a)
+ELSE()
+  target_link_libraries(cli debug ${Z3_BUILD_PATH}/Debug/libz3.lib)
+  target_link_libraries(cli optimized ${Z3_BUILD_PATH}/Release/libz3.lib)
+ENDIF()

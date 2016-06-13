@@ -19,7 +19,7 @@
 namespace util {
 std::ostream& operator<<(std::ostream& stream, const SourceRange& loc) {
   if (loc.file()) {
-    stream << *loc.file() << ":";
+    stream << loc.file()->c_str() << ":";
   }
   stream << loc.begin().line() << ":" << loc.begin().column();
   if (loc.end().line() != loc.begin().line()) {

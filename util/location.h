@@ -30,6 +30,7 @@ class SourceLocation {
   SourceLocation& operator=(const SourceLocation& o) {
     line_ = o.line_;
     column_ = o.column_;
+    return *this;
   }
   unsigned line() const { return line_; }
   unsigned column() const { return column_; }
@@ -56,6 +57,7 @@ class SourceRange {
     file_ = o.file_;
     begin_ = o.begin_;
     end_ = o.end_;
+    return *this;
   }
   const std::string* file() const { return file_; }
   SourceLocation begin() const { return begin_; }

@@ -17,6 +17,10 @@
 #ifndef LEXPARSE_LUA_PARSER_H_
 #define LEXPARSE_LUA_PARSER_H_
 
+#ifdef YY_NO_UNISTD_H
+inline int isatty(int) { return 0; }
+#endif
+
 namespace yy {
 class LuaParserImpl;
 }
