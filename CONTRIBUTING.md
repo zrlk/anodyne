@@ -28,7 +28,10 @@ files. This can be part of your first commit.
 
 ## Submitting a patch
 
-TODO: Add instructions here once we settle on a hosting site.
+We accept GitHub pull requests. All patches are subject to code review.
+
+C++ should be formatted via `clang-format -style=google` and follow the
+[Google style guide](https://google.github.io/styleguide/cppguide.html).
 
 Please use [well-formed commit messages]
 (http://tbaggery.com/2008/04/19/a-note-about-git-commit-messages.html).
