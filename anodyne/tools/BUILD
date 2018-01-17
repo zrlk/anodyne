@@ -7,15 +7,16 @@ cc_binary(
 )
 
 v8_heap_gen(
-    name = "base_heap",
-    out_prefix = "base_heap",
+    name = "test_heap",
+    src = "v8_heap_gen_test.js",
+    out_prefix = "test_heap",
 )
 
 cc_test(
     name = "v8_heap_gen_test",
     srcs = ["v8_heap_gen_test.cc"],
     deps = [
-        ":base_heap",
+        ":test_heap",
         "//third_party:gtest_main",
     ],
 )

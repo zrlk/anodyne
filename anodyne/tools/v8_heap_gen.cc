@@ -24,11 +24,10 @@
 
 #include <algorithm>
 
-// v8_heap_gen output/prefix snapshot_blob.bin natives_blob.bin [image.js]
+// v8_heap_gen output/prefix image.js
 // produces output/prefix.h and output/prefix.cc, which provide
-// `::InitV8FromBuiltinBuffers()` and the global
-// `v8::StartupData kIsolateInitBlob`. These initialize V8 with its builtins
-// and contain the isolate heap resulting from image.js (respectively).
+// the global `v8::StartupData kIsolateInitBlob`. This contains the isolate heap
+// resulting from image.js.
 
 namespace {
 void GetFileContent(const char* filename, std::string* out) {
@@ -50,8 +49,8 @@ void GetFileContent(const char* filename, std::string* out) {
   }
   ::close(fd);
 }
-void EmitData(FILE* f, const std::string& name, const char* data, size_t len,
-              bool public_blob) {
+void EmitData(FILE* f, const std::string& name, const char* data, size_t len) {
+  ::fprintf(f, "namespace {\n");
   ::fprintf(f, "  const unsigned char k%sData[] = {", name.c_str());
   for (const auto* p = data; p < data + len; ++p) {
     if (p != data) {
@@ -62,41 +61,23 @@ void EmitData(FILE* f, const std::string& name, const char* data, size_t len,
   ::fprintf(f, "};\n\n");
   ::fprintf(f, "  const size_t k%sLen = %zu;\n", name.c_str(), len);
   ::fprintf(f, "}\n\n");
-  if (public_blob) {
-    ::fprintf(f,
-              "v8::StartupData k%sBlob = {(const char*)k%sData, k%sLen};\n\n",
-              name.c_str(), name.c_str(), name.c_str());
-  }
-  ::fprintf(f, "namespace {\n");
+  ::fprintf(f, "v8::StartupData k%sBlob = {(const char*)k%sData, k%sLen};\n\n",
+            name.c_str(), name.c_str(), name.c_str());
 }
 }  // namespace
 
 int main(int argc, char** argv) {
-  if (argc != 4 && argc != 5) {
-    ::fprintf(stderr,
-              "usage: %s output/prefix snapshot_blob.bin natives_blob.bin "
-              "[image.js]\n",
-              argv[0]);
+  if (argc != 3) {
+    ::fprintf(stderr, "usage: %s output/prefix image.js", argv[0]);
     return 1;
   }
-  std::string snapshot, natives, image;
-  GetFileContent(argv[2], &snapshot);
-  GetFileContent(argv[3], &natives);
-  if (argc == 5) {
-    GetFileContent(argv[4], &image);
-  }
-  v8::StartupData data;
-  v8::StartupData v8natives, v8snapshot;
-  v8natives.data = natives.data();
-  v8natives.raw_size = natives.size();
-  v8snapshot.data = snapshot.data();
-  v8snapshot.raw_size = snapshot.size();
-  v8::V8::SetNativesDataBlob(&v8natives);
-  v8::V8::SetSnapshotDataBlob(&v8snapshot);
+  std::string image;
+  GetFileContent(argv[2], &image);
+
   v8::Platform* platform = v8::platform::CreateDefaultPlatform();
   v8::V8::InitializePlatform(platform);
   v8::V8::Initialize();
-  data = v8::V8::CreateSnapshotDataBlob(image.c_str());
+  v8::StartupData data = v8::V8::CreateSnapshotDataBlob(image.c_str());
 
   std::string cc_name = argv[1];
   std::string h_name = argv[1];
@@ -113,32 +94,12 @@ int main(int argc, char** argv) {
     return 1;
   }
   ::fprintf(h, "#include \"v8.h\"\n\n");
-  ::fprintf(
-      h, "/// \\brief Initialize V8 using the builtin snapshot and natives.\n");
-  ::fprintf(h, "void InitV8FromBuiltinBuffers();\n\n");
   ::fprintf(h,
             "/// \\brief `StartupData` for starting an isolate with a prebuilt "
             "heap.\n");
   ::fprintf(h, "extern v8::StartupData kIsolateInitBlob;\n");
   ::fprintf(cc, "#include \"v8.h\"\n\n");
-  ::fprintf(cc, "namespace {\n");
-  EmitData(cc, "Natives", natives.data(), natives.size(),
-           /*public_blob=*/false);
-  EmitData(cc, "Snapshot", snapshot.data(), snapshot.size(),
-           /*public_blob=*/false);
-  EmitData(cc, "IsolateInit", data.data, data.raw_size, /*public_blob=*/true);
-  ::fprintf(cc, "}\n\n");
-  ::fprintf(cc, "void InitV8FromBuiltinBuffers() {\n");
-  ::fprintf(
-      cc,
-      "  v8::StartupData natives { (const char*)kNativesData, kNativesLen "
-      "};\n");
-  ::fprintf(cc,
-            "  v8::StartupData snapshot { (const char*)kSnapshotData, "
-            "kSnapshotLen };\n");
-  ::fprintf(cc, "  v8::V8::SetNativesDataBlob(&natives);\n");
-  ::fprintf(cc, "  v8::V8::SetSnapshotDataBlob(&snapshot);\n");
-  ::fprintf(cc, "}\n");
+  EmitData(cc, "IsolateInit", data.data, data.raw_size);
   if (::fclose(cc)) {
     ::fprintf(stderr, "can't close %s\n", cc_name.c_str());
     return 1;

@@ -16,21 +16,17 @@
 # out_prefix.h and out_prefix.cc, which provide the function
 # `::InitV8FromBuiltinBuffers()` and the global
 # `v8::StartupData kIsolateInitBlob`.
-def v8_heap_gen(name, srcs=[], out_prefix=''):
+def v8_heap_gen(name, src='', out_prefix=''):
   if out_prefix == '':
     fail("out_prefix must not be empty")
-  all_srcs = ""
-  for src in srcs:
-    all_srcs += "$(location %s)" % src
+  if src == '':
+    fail("src must not be empty")
   native.genrule(
     name = name + "_gen",
-    srcs = srcs + [
-        "//third_party/v8:snapshot/snapshot_blob.bin",
-        "//third_party/v8:snapshot/natives_blob.bin",
-    ],
+    srcs = [src],
     outs = [out_prefix + ".cc", out_prefix + ".h"],
     tools = ["//anodyne/tools:v8_heap_gen"],
-    cmd = "./$(location //anodyne/tools:v8_heap_gen) $(@D)/%s $(location //third_party/v8:snapshot/snapshot_blob.bin) $(location //third_party/v8:snapshot/natives_blob.bin) %s" % (out_prefix, all_srcs)
+    cmd = "./$(location //anodyne/tools:v8_heap_gen) $(@D)/%s $(location %s)" % (out_prefix, src)
   )
   native.cc_library(
     name = name,

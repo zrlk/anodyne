@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include "anodyne/tools/base_heap.h"
+#include "anodyne/tools/test_heap.h"
 #include "gtest/gtest.h"
 #include "libplatform/libplatform.h"
 #include "v8.h"
@@ -22,26 +22,26 @@
 // Check to see if we can run a V8 example with a v8_heap_gen snapshot.
 TEST(V8HeapGen, SmokeTest) {
   using namespace v8;
-  InitV8FromBuiltinBuffers();
   Platform* platform = platform::CreateDefaultPlatform();
   V8::InitializePlatform(platform);
   V8::Initialize();
   Isolate::CreateParams create_params;
   create_params.array_buffer_allocator =
       v8::ArrayBuffer::Allocator::NewDefaultAllocator();
+  create_params.snapshot_blob = &kIsolateInitBlob;
   Isolate* isolate = Isolate::New(create_params);
   {
     Isolate::Scope isolate_scope(isolate);
     HandleScope handle_scope(isolate);
     Local<Context> context = Context::New(isolate);
     Context::Scope context_scope(context);
-    Local<String> source = String::NewFromUtf8(isolate, "'Hello' + ', World!'",
-                                               NewStringType::kNormal)
-                               .ToLocalChecked();
+    Local<String> source =
+        String::NewFromUtf8(isolate, "hello()", NewStringType::kNormal)
+            .ToLocalChecked();
     Local<Script> script = Script::Compile(context, source).ToLocalChecked();
     Local<Value> result = script->Run(context).ToLocalChecked();
     String::Utf8Value utf8(result);
-    EXPECT_TRUE(::strcmp(*utf8, "Hello, World!") == 0);
+    EXPECT_TRUE(::strcmp(*utf8, "Hello, world!") == 0);
   }
   isolate->Dispose();
   V8::Dispose();

@@ -11,7 +11,7 @@ Anodyne can be built with Bazel. There are some additional dependencies that
 are not managed by Bazel that you must provide. They may be hard- or soft-linked
 to these locations:
 
-  * v8 (17a6ec1b88f39beaa24a31c132ee27bc024c2d6b via [depot_tools](http://commondatastorage.googleapis.com/chrome-infra-docs/flat/depot_tools/docs/html/depot_tools_tutorial.html#_setting_up))
+  * v8 (7dbfec50e3f2f66a3d0035f2eff91c5bdf472a0e via [depot_tools](http://commondatastorage.googleapis.com/chrome-infra-docs/flat/depot_tools/docs/html/depot_tools_tutorial.html#_setting_up))
     * libraries in third_party/v8/lib (linking v8/out.gn/x64.release/obj is OK)
-    * snapshots in third_party/v8/snapshot (linking v8/out.gn/x64.release is OK)
     * headers in third_party/v8/include (linking v8/include is OK)
+    * Be sure to build using [GN](https://github.com/v8/v8/wiki/Building-with-GN): (`tools/dev/v8gen.py x64.release -- v8_monolithic=true v8_use_external_startup_data=false && ninja -C out.gn/x64.release`)
