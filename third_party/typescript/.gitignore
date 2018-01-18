@@ -1,0 +1,4 @@
+# Expected symlinks.
+compiler
+node
+tsc.js

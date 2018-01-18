@@ -1,3 +1,5 @@
+package(default_visibility = ["//anodyne:default_visibility"])
+
 load(":v8_heap_gen.bzl", "v8_heap_gen")
 
 cc_binary(
