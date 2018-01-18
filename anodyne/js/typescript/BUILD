@@ -60,6 +60,7 @@ genrule(
         "//third_party/typescript:compiler/commandLineParser.ts",
         "//third_party/typescript:compiler/diagnosticInformationMap.generated.ts",
         "//third_party/typescript:compiler/moduleNameResolver.ts",
+        "//third_party/typescript:lib/lib.d.ts",
     ],
     outs = ["index.js"],
     # tsc looks up paths relative to the location of tsconfig.json.

@@ -17,5 +17,6 @@ to these locations:
     * Be sure to build using [GN](https://github.com/v8/v8/wiki/Building-with-GN): (`tools/dev/v8gen.py x64.release -- v8_monolithic=true v8_use_external_startup_data=false && ninja -C out.gn/x64.release`)
   * typescript (8173733ead1bf6e72397cd68e522fe25423a56a4 via https://github.com/Microsoft/TypeScript.git)
     * compiler source in third_party/typescript/compiler (linking typescript/src/compiler is OK)
+    * compiler libraries in third_party/typescript/lib (linking typescript/lib is OK)
     * tsc.js in third_party/typescript/tsc.js (linking typescript/built/local/tsc.js is OK)
     * node capable of running tsc.js in third_party/typescript/node
