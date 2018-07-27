@@ -64,3 +64,15 @@ new_http_archive(
     urls = ["https://github.com/google/protobuf/archive/964201af37f8a0009440a52a30a66317724a52c3.zip"],
 )
 
+http_archive(
+    name = "io_kythe",
+    url = "https://github.com/google/kythe/archive/ea67d6640661ff27449ffc74e4f7dbcd57a6db53.zip",
+    strip_prefix = "kythe-ea67d6640661ff27449ffc74e4f7dbcd57a6db53",
+)
+
+# Required by io_kythe
+http_archive(
+    name = "io_bazel_rules_go",
+    sha256 = "8b68d0630d63d95dacc0016c3bb4b76154fe34fca93efd65d1c366de3fcb4294",
+    url = "https://github.com/bazelbuild/rules_go/releases/download/0.12.1/rules_go-0.12.1.tar.gz",
+)
