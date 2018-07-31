@@ -26,3 +26,19 @@ cc_test(
         "@com_google_googletest//:gtest_main",
     ],
 )
+
+cc_library(
+    name = "base",
+    hdrs = [
+        "arena.h",
+    ],
+)
+
+cc_test(
+    name = "arena_test",
+    srcs = ["arena_test.cc"],
+    deps = [
+        ":base",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
