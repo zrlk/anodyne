@@ -1,0 +1,9 @@
+URL: https://kythe.io
+Version: d7ad52c839015ef3e6f927759a53e2fad0ff9d09
+License: Apache License 2.0 http://www.apache.org/licenses/LICENSE-2.0
+License File: LICENSE
+
+Description: Status support library from Kythe, pending one in absl.
+
+Modifications:
+* 'kythe' -> 'anodyne' to avoid ODR problems.
