@@ -1,0 +1,12 @@
+URL: https://github.com/fsprojects/FSharp.Compatibility/archive/c694c438addbf8ab97c1d1da0ad6a2c2081a8fb7.zip
+Version: c694c438addbf8ab97c1d1da0ad6a2c2081a8fb7
+License: GNU Lesser General Public License - Version 2.1, February 1999
+License File: LICENSE
+
+Description:
+The Format module from the OCaml Standard Library.
+
+This is provided as a separate assembly for licensing reasons --
+it contains source code from the OCaml Standard Library.
+
+Local modifications: Extracted FSharp.Compatibility.Format. Ported to C++.
