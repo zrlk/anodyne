@@ -18,6 +18,27 @@ cc_library(
     ],
 )
 
+cc_library(
+    name = "source_map",
+    srcs = ["source_map.cc"],
+    hdrs = ["source_map.h"],
+    deps = [
+        "@com_github_google_glog//:glog",
+        "@com_google_absl//absl/strings",
+        ":fs",
+        "@com_github_tencent_rapidjson//:rapidjson",
+    ],
+)
+
+cc_test(
+    name = "source_map_test",
+    srcs = ["source_map_test.cc"],
+    deps = [
+        ":source_map",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
 cc_test(
     name = "paths_test",
     srcs = ["paths_test.cc"],
