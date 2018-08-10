@@ -39,6 +39,26 @@ cc_test(
     ],
 )
 
+cc_library(
+    name = "source_buffer",
+    srcs = ["source_buffer.cc"],
+    hdrs = ["source_buffer.h"],
+    deps = [
+        "@com_github_google_glog//:glog",
+        "@com_google_absl//absl/strings",
+        ":source_map",
+    ],
+)
+
+cc_test(
+    name = "source_buffer_test",
+    srcs = ["source_buffer_test.cc"],
+    deps = [
+        ":source_buffer",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
 cc_test(
     name = "paths_test",
     srcs = ["paths_test.cc"],

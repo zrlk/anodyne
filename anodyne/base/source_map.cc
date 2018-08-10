@@ -22,6 +22,8 @@
 #include "rapidjson/document.h"
 #include "rapidjson/error/en.h"
 
+#include <algorithm>
+
 namespace anodyne {
 namespace {
 static constexpr int kDecode64[] = {
@@ -218,6 +220,11 @@ bool SourceMap::ParseMappings(absl::string_view mappings) {
       }
     }
   }
+  std::stable_sort(segments_.begin(), segments_.end(),
+                   [](const SourceMapSegment& a, const SourceMapSegment& b) {
+                     return std::tie(a.generated_line, a.generated_col) <
+                            std::tie(b.generated_line, b.generated_col);
+                   });
   return !bad_map;
 }
 }  // namespace anodyne

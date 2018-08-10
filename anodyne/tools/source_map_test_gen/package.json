@@ -1,0 +1,7 @@
+{
+  "name": "source_map_test_gen",
+  "main": "index.js",
+  "dependencies": {
+    "source-map": "^0.7.3"
+  }
+}
