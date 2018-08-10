@@ -66,8 +66,8 @@ new_http_archive(
 
 http_archive(
     name = "io_kythe",
-    url = "https://github.com/google/kythe/archive/ea67d6640661ff27449ffc74e4f7dbcd57a6db53.zip",
-    strip_prefix = "kythe-ea67d6640661ff27449ffc74e4f7dbcd57a6db53",
+    url = "https://github.com/google/kythe/archive/c062cfcbeea8de56c0a20ebb12deb74deb1a016d.zip",
+    strip_prefix = "kythe-c062cfcbeea8de56c0a20ebb12deb74deb1a016d",
 )
 
 # Required by io_kythe
