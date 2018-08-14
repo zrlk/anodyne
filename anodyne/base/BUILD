@@ -83,6 +83,25 @@ cc_test(
     ],
 )
 
+cc_library(
+    name = "symbol_table",
+    hdrs = ["symbol_table.h"],
+    deps = [
+        ":base",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
+cc_test(
+    name = "symbol_table_test",
+    srcs = ["symbol_table_test.cc"],
+    deps = [
+        ":base",
+        ":symbol_table",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
 cc_test(
     name = "paths_test",
     srcs = ["paths_test.cc"],
