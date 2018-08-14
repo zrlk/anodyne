@@ -23,10 +23,10 @@ cc_library(
     srcs = ["source_map.cc"],
     hdrs = ["source_map.h"],
     deps = [
-        "@com_github_google_glog//:glog",
-        "@com_google_absl//absl/strings",
         ":fs",
+        "@com_github_google_glog//:glog",
         "@com_github_tencent_rapidjson//:rapidjson",
+        "@com_google_absl//absl/strings",
     ],
 )
 
@@ -44,9 +44,9 @@ cc_library(
     srcs = ["source_buffer.cc"],
     hdrs = ["source_buffer.h"],
     deps = [
+        ":source_map",
         "@com_github_google_glog//:glog",
         "@com_google_absl//absl/strings",
-        ":source_map",
     ],
 )
 
@@ -55,6 +55,30 @@ cc_test(
     srcs = ["source_buffer_test.cc"],
     deps = [
         ":source_buffer",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_library(
+    name = "source",
+    srcs = ["source.cc"],
+    hdrs = ["source.h"],
+    deps = [
+        ":source_buffer",
+        "@com_github_google_glog//:glog",
+        "@com_google_absl//absl/memory",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
+cc_test(
+    name = "source_test",
+    srcs = ["source_test.cc"],
+    deps = [
+        ":source",
+        ":source_buffer",
+        "@com_google_absl//absl/memory",
+        "@com_google_absl//absl/strings",
         "@com_google_googletest//:gtest_main",
     ],
 )
