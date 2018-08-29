@@ -2,6 +2,42 @@ package(default_visibility = ["//anodyne:default_visibility"])
 
 load(":pack_file.bzl", "pack_file")
 load(":v8_heap_gen.bzl", "v8_heap_gen")
+load(":lexyacc.bzl", "genlex", "genyacc")
+
+genyacc(
+    name = "tt_yacc",
+    src = "tt.y",
+    extra_outs = [
+        "stack.hh",
+    ],
+    header_out = "tt.y.hh",
+    source_out = "tt.y.cc",
+)
+
+genlex(
+    name = "tt_lex",
+    src = "tt.l",
+    out = "tt.l.cc",
+    includes = [":tt_yacc"],
+)
+
+cc_library(
+    name = "tt_lib",
+    srcs = [
+        "tt_parser.cc",
+        ":tt_lex",
+        ":tt_yacc",
+    ],
+    hdrs = [
+        "tt_bison_support.h",
+        "tt_parser.h",
+        ":tt_yacc",
+    ],
+    deps = [
+        "//anodyne/base:source",
+        "@com_google_absl//absl/strings",
+    ],
+)
 
 cc_binary(
     name = "pack_file",
