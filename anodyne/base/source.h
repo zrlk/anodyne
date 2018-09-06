@@ -73,6 +73,8 @@ class Location {
   Rep data_;
 };
 
+class Source;
+
 /// \brief A range of text in a source file.
 struct Range {
   /// The beginning of the range.
@@ -84,6 +86,8 @@ struct Range {
   bool is_valid() const { return begin.is_valid() && end.is_valid(); }
   /// \return a new `Range` covering `[this.begin, o.end)`
   Range merge(const Range& o) const { return Range{begin, o.end}; }
+  /// \return a string representation of this `Range`.
+  std::string ToString(const Source& source) const;
 };
 
 /// \brief An identifier for a particular object in a repository.

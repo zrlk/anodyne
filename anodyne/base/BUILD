@@ -115,6 +115,7 @@ cc_library(
     name = "base",
     hdrs = [
         "arena.h",
+        "trees.h",
     ],
 )
 
@@ -124,5 +125,20 @@ cc_test(
     deps = [
         ":base",
         "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_library(
+    name = "context",
+    hdrs = [
+        "context.h",
+    ],
+    srcs = [
+        "context.cc",
+    ],
+    deps = [
+        ":base",
+        ":source",
+        ":symbol_table",
     ],
 )

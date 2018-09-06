@@ -29,25 +29,33 @@ class TtGenerator {
  public:
   /// \brief Generate code for for the definitions in `parser`.
   /// \param parser the parser containing definitions.
+  /// \param source used to look up error locations.
   /// \param h_relative_path the path `cc` should use to refer to `h`.
   /// \param h an open file handle for writing header code.
   /// \param cc an open file handle for writing implementation code.
-  static bool GenerateCode(const TtParser& parser,
+  static bool GenerateCode(const TtParser& parser, const Source& source,
                            absl::string_view h_relative_path, FILE* h,
                            FILE* cc) {
-    return TtGenerator(parser, h_relative_path, h, cc).Generate();
+    return TtGenerator(parser, source, h_relative_path, h, cc).Generate();
   }
   /// \brief Generate code for the matchers in `parser`.
   /// \param parser the parser containing matchers.
+  /// \param source used to look up error locations.
   /// \param m an open file handle for writing matcher code.
-  static bool GenerateMatchers(const TtParser& parser, FILE* m) {
-    return TtGenerator(parser, "", m, nullptr).GenerateMatchers();
+  static bool GenerateMatchers(const TtParser& parser, const Source& source,
+                               FILE* m) {
+    return TtGenerator(parser, source, "", m, nullptr).GenerateMatchers();
   }
 
  private:
-  TtGenerator(const TtParser& parser, absl::string_view h_relative_path,
-              FILE* h, FILE* cc)
-      : parser_(parser), h_relative_path_(h_relative_path), h_(h), cc_(cc) {}
+  using Type = std::string;
+  TtGenerator(const TtParser& parser, const Source& source,
+              absl::string_view h_relative_path, FILE* h, FILE* cc)
+      : parser_(parser),
+        source_(source),
+        h_relative_path_(h_relative_path),
+        h_(h),
+        cc_(cc) {}
   /// \brief Generate the header and source preamble for datatype definitions.
   /// \return false on failure.
   bool GeneratePreamble();
@@ -57,11 +65,34 @@ class TtGenerator {
   /// \brief Generate the header and source files for datatype definitions.
   /// \return false on failure.
   bool Generate();
+  /// \brief Generate the representation of `datatype`.
+  /// \return false on failure.
+  bool GenerateDatatypeRep(const TtDatatype& datatype);
+  /// \brief Generate the representation of `constructor` in `datatype`.
+  /// \return false on failure.
+  bool GenerateCtorRep(const TtDatatype& datatype,
+                       const TtConstructor& constructor);
   /// \brief Generate the implementation code for matchers.
   /// \return false on failure.
   bool GenerateMatchers();
+  /// \brief Determine the C++ types to use to represent `constructor`.
+  /// \return false on failure.
+  bool DecomposeCtorType(const TtConstructor& constructor,
+                         std::vector<Type>* type_out);
+  /// \brief Determine the C++ types to use to represent `type`.
+  /// \return false on failure.
+  bool DecomposeType(const TtTypeNode& type, std::vector<Type>* type_out);
+  /// \brief Determine the C++ types to use to represent `type`, which should
+  /// have kIdentifier kind.
+  /// \return false on failure.
+  bool DecomposeIdentType(const TtTypeNode& type, std::vector<Type>* type_out);
+  /// \brief Print an error to stderr.
+  /// \return false.
+  bool Error(Range range, absl::string_view message);
   /// A parser containing definitions or matchers.
   const TtParser& parser_;
+  /// Used to look up locations for error reporting.
+  const Source& source_;
   /// If we're generating definitions, the relative path the definition
   /// .cc should use to refer to its .h.
   std::string h_relative_path_;

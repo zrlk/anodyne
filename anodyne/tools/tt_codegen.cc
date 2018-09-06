@@ -35,8 +35,37 @@ std::string HeaderGuardFor(absl::string_view file) {
   return guard;
 }
 
+/// \brief Generate code in `out` that deletes unwanted default members from
+/// `name`.
+void DeleteBadCtors(const std::string& name, FILE* out) {
+  fprintf(out, "  %s(const %s& o) = delete;\n", name.c_str(), name.c_str());
+  fprintf(out, "  %s& operator=(const %s& o) = delete;\n", name.c_str(),
+          name.c_str());
+}
+
 /// \brief Returns the path to use when including `file`.
 std::string LocalPathFor(absl::string_view file) { return std::string(file); }
+
+/// \brief Automatically enters and exits the namespace specified by
+/// `qualifiers`.
+class Namespace {
+ public:
+  Namespace(const std::vector<std::string>& qualifiers, FILE* out)
+      : qualifiers_(qualifiers), out_(out) {
+    for (const auto& ns : qualifiers_) {
+      fprintf(out_, "namespace %s {\n", ns.c_str());
+    }
+  }
+  ~Namespace() {
+    for (const auto& ns : qualifiers_) {
+      fprintf(out_, "}  // namespace %s\n", ns.c_str());
+    }
+  }
+
+ private:
+  const std::vector<std::string>& qualifiers_;
+  FILE* out_;
+};
 }  // anonymous namespace
 
 bool TtGenerator::GeneratePreamble() {
@@ -45,9 +74,13 @@ bool TtGenerator::GeneratePreamble() {
   fprintf(h_, "#include \"%s\"\n",
           LocalPathFor("anodyne/base/arena.h").c_str());
   fprintf(h_, "#include \"%s\"\n",
+          LocalPathFor("anodyne/base/context.h").c_str());
+  fprintf(h_, "#include \"%s\"\n",
           LocalPathFor("anodyne/base/symbol_table.h").c_str());
   fprintf(h_, "#include \"%s\"\n",
           LocalPathFor("anodyne/base/source.h").c_str());
+  fprintf(h_, "#include \"%s\"\n",
+          LocalPathFor("anodyne/base/trees.h").c_str());
   for (const auto& datatype : parser_.datatypes()) {
     if (datatype.second.derive_json) {
       fprintf(h_, "#include \"%s\"\n",
@@ -70,7 +103,30 @@ bool TtGenerator::Generate() {
   if (!GeneratePreamble()) {
     return false;
   }
-  // TODO: Write out definition code.
+  // Forward declarations in case we have mutual recursion.
+  for (const auto& datatype : parser_.datatypes()) {
+    Namespace ns(datatype.second.qualifiers, h_);
+    fprintf(h_, "class %s;\n", datatype.second.unqualified_ident.c_str());
+    for (const auto& ctor : datatype.second.ctors) {
+      fprintf(h_, "class Unboxed%s;\n", ctor.ident.c_str());
+    }
+  }
+  // Datatype implementation.
+  for (const auto& datatype : parser_.datatypes()) {
+    Namespace ns(datatype.second.qualifiers, h_);
+    if (!GenerateDatatypeRep(datatype.second)) {
+      return false;
+    }
+  }
+  // Constructor implementation.
+  for (const auto& datatype : parser_.datatypes()) {
+    Namespace ns(datatype.second.qualifiers, h_);
+    for (const auto& ctor : datatype.second.ctors) {
+      if (!GenerateCtorRep(datatype.second, ctor)) {
+        return false;
+      }
+    }
+  }
   if (!GeneratePostamble()) {
     return false;
   }
@@ -82,4 +138,171 @@ bool TtGenerator::GenerateMatchers() {
   // TODO: Write out pattern code.
   return true;
 }
+
+bool TtGenerator::Error(Range range, absl::string_view message) {
+  std::cerr << range.ToString(source_) << ": " << message;
+  return false;
+}
+
+bool TtGenerator::GenerateDatatypeRep(const TtDatatype& datatype) {
+  fprintf(h_, "class %s : public ::anodyne::ArenaObject {\n",
+          datatype.unqualified_ident.c_str());
+  fprintf(h_, " public:\n");
+  fprintf(h_, "  enum class Tag {\n");
+  for (size_t c = 0; c < datatype.ctors.size(); ++c) {
+    fprintf(h_, "    k%s = %lu,\n", datatype.ctors[c].ident.c_str(), c);
+  }
+  fprintf(h_, "  };\n");
+  fprintf(h_, "  const Tag tag() const { return tag_; }\n");
+  for (const auto& ctor : datatype.ctors) {
+    fprintf(h_, "  inline const Unboxed%s* As%s() const;\n", ctor.ident.c_str(),
+            ctor.ident.c_str());
+  }
+  fprintf(h_, "  inline void Dump(absl::string_view prefix) const;\n");
+  fprintf(h_, " protected:\n");
+  fprintf(h_, "  %s(Tag t) : tag_(t) { }\n",
+          datatype.unqualified_ident.c_str());
+  DeleteBadCtors(datatype.unqualified_ident, h_);
+  fprintf(h_, " private:\n");
+  fprintf(h_, "  Tag tag_;\n");
+  fprintf(h_, "};\n");
+  return true;
+}
+
+bool TtGenerator::GenerateCtorRep(const TtDatatype& datatype,
+                                  const TtConstructor& constructor) {
+  fprintf(h_, "class Unboxed%s : public %s {\n", constructor.ident.c_str(),
+          datatype.unqualified_ident.c_str());
+  fprintf(h_, " public:\n");
+  std::vector<Type> decomposed_type;
+  if (!DecomposeCtorType(constructor, &decomposed_type)) {
+    return false;
+  }
+  fprintf(h_, "  Unboxed%s(", constructor.ident.c_str());
+  for (size_t i = 0; i < decomposed_type.size(); ++i) {
+    if (i != 0) {
+      fprintf(h_, ", ");
+    }
+    fprintf(h_, "%s m_%lu", decomposed_type[i].c_str(), i);
+  }
+  fprintf(h_, ") : %s(%s::Tag::k%s)", datatype.unqualified_ident.c_str(),
+          datatype.unqualified_ident.c_str(), constructor.ident.c_str());
+  for (size_t i = 0; i < decomposed_type.size(); ++i) {
+    fprintf(h_, ", m_%lu_(m_%lu)", i, i);
+  }
+  fprintf(h_, " {}\n");
+  DeleteBadCtors(("Unboxed" + constructor.ident).c_str(), h_);
+  for (size_t i = 0; i < decomposed_type.size(); ++i) {
+    fprintf(h_, "  %s m_%lu_;\n", decomposed_type[i].c_str(), i);
+  }
+  fprintf(h_, "};\n");
+  fprintf(h_,
+          "inline const Unboxed%s* %s::As%s() const { return tag_ == Tag::k%s "
+          "? static_cast<const Unboxed%s*>(this) : nullptr; }\n",
+          constructor.ident.c_str(), datatype.unqualified_ident.c_str(),
+          constructor.ident.c_str(), constructor.ident.c_str(),
+          constructor.ident.c_str());
+  fprintf(h_, "inline const %s* %s(", datatype.unqualified_ident.c_str(),
+          constructor.ident.c_str());
+  for (size_t i = 0; i < decomposed_type.size(); ++i) {
+    if (i != 0) {
+      fprintf(h_, ", ");
+    }
+    fprintf(h_, "%s m_%lu", decomposed_type[i].c_str(), i);
+  }
+  fprintf(h_, ") {\n");
+  fprintf(h_,
+          "  return new (::anodyne::Context::Current()->arena()) Unboxed%s(",
+          constructor.ident.c_str());
+  for (size_t i = 0; i < decomposed_type.size(); ++i) {
+    if (i != 0) {
+      fprintf(h_, ", ");
+    }
+    fprintf(h_, "m_%lu", i);
+  }
+  fprintf(h_, ");\n}\n");
+  return true;
+}
+
+bool TtGenerator::DecomposeCtorType(const TtConstructor& constructor,
+                                    std::vector<Type>* type_out) {
+  if (constructor.type == nullptr) {
+    return true;
+  }
+  switch (constructor.type->kind) {
+    case TtTypeNode::Kind::kTuple: {
+      for (const auto& kid : constructor.type->children) {
+        if (!DecomposeType(*kid, type_out)) {
+          return false;
+        }
+      }
+    } break;
+    case TtTypeNode::Kind::kIdentifier: {
+      if (!DecomposeIdentType(*constructor.type, type_out)) {
+        return false;
+      }
+    } break;
+  }
+  return true;
+}
+
+bool TtGenerator::DecomposeType(const TtTypeNode& type,
+                                std::vector<Type>* type_out) {
+  switch (type.kind) {
+    case TtTypeNode::Kind::kTuple: {
+      for (const auto& kid : type.children) {
+        if (!DecomposeType(*kid, type_out)) {
+          return false;
+        }
+      }
+    } break;
+    case TtTypeNode::Kind::kIdentifier:
+      return DecomposeIdentType(type, type_out);
+  }
+  return true;
+}
+
+bool TtGenerator::DecomposeIdentType(const TtTypeNode& type,
+                                     std::vector<Type>* type_out) {
+  Type append_out;
+  auto dt = parser_.datatypes().find(type.ident);
+  if (dt != parser_.datatypes().end()) {
+    if (type.is_array) {
+      if (type.is_option) {
+        Error(type.loc, "array and option are not miscible");
+        return false;
+      }
+      append_out = "::anodyne::ArenaSlice<" + dt->second.qualified_ident + ">";
+    } else if (type.is_option) {
+      append_out = "::anodyne::ArenaOption<" + dt->second.qualified_ident + ">";
+    } else {
+      append_out = "const " + dt->second.qualified_ident + "*";
+    }
+    type_out->push_back(append_out);
+    return true;
+  }
+  if (type.ident == "ident") {
+    if (type.is_array) {
+      append_out = "::anodyne::ArenaSlice<::anodyne::Symbol>";
+    } else if (type.is_option) {
+      append_out = "::anodyne::ArenaOption<::anodyne::Symbol>";
+    } else {
+      append_out = "const ::anodyne::Symbol";
+    }
+    type_out->push_back(append_out);
+    return true;
+  }
+  if (type.ident == "unit") {
+    append_out = "::anodyne::Unit";
+    type_out->push_back(append_out);
+    return true;
+  }
+  if (type.ident == "range") {
+    append_out = "::anodyne::Range";
+    type_out->push_back(append_out);
+    return true;
+  }
+  return Error(type.loc, type.ident + ": identifier unknown");
+}
+
 }  // namespace anodyne

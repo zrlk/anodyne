@@ -22,6 +22,37 @@
 
 namespace anodyne {
 
+std::string Range::ToString(const Source& source) const {
+  const File* lhs = source.FindFile(begin);
+  const File* rhs = source.FindFile(end);
+  std::stringstream out;
+  if (!lhs) {
+    out << "(bad range lhs)";
+  } else if (!rhs) {
+    out << "(bad range rhs)";
+  } else if (lhs != rhs) {
+    out << "(range spans files)";
+  } else {
+    out << lhs->id().ToString() << ":";
+    auto lhs_lc = lhs->contents().Utf8LineColForOffset(begin.data() -
+                                                       lhs->begin().data());
+    auto rhs_lc =
+        rhs->contents().Utf8LineColForOffset(end.data() - rhs->begin().data());
+    if (lhs_lc.first < 0) {
+      out << "(bad range lhs in file)";
+    } else if (rhs_lc.first < 0) {
+      out << "(bad range rhs in file)";
+    } else {
+      out << lhs_lc.first << ":" << lhs_lc.second << "-";
+      if (lhs_lc.first != rhs_lc.first) {
+        out << rhs_lc.first << ":";
+      }
+      out << rhs_lc.second;
+    }
+  }
+  return out.str();
+}
+
 absl::string_view File::Text(Location begin, Location end) const {
   if (end.data() <= begin.data() || begin.data() < begin_.data() ||
       end.data() > end_.data()) {

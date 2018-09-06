@@ -39,7 +39,12 @@ def tt_library(name, src, out_prefix, builds_json = False):
         srcs = [out_prefix + ".cc"],
         hdrs = [out_header],
         includes = [out_header],
-        deps = ["//anodyne/base", "//anodyne/base:symbol_table", "//anodyne/base:source"] + _json_deps,
+        deps = [
+            "//anodyne/base",
+            "//anodyne/base:source",
+            "//anodyne/base:symbol_table",
+            "//anodyne/base:context",
+        ] + _json_deps,
     )
 
 def tt_matchers(name, src):

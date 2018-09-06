@@ -55,7 +55,8 @@ class AutoUnlink {
 
 /// \brief Emit tree definitions from `source_content` using `dest_file_prefix`
 /// to name output.
-int BuildTreeDefs(const anodyne::File* source_content,
+int BuildTreeDefs(const anodyne::Source& source,
+                  const anodyne::File* source_content,
                   absl::string_view dest_file_prefix) {
   anodyne::TtParser parser;
   if (!parser.ParseFile(source_content, false)) {
@@ -77,7 +78,8 @@ int BuildTreeDefs(const anodyne::File* source_content,
     return 1;
   }
   AutoUnlink unlink_h(h_path);
-  if (!anodyne::TtGenerator::GenerateCode(parser, h_path, h_out, cc_out)) {
+  if (!anodyne::TtGenerator::GenerateCode(parser, source, h_path, h_out,
+                                          cc_out)) {
     return 1;
   }
   if (fclose(cc_out) != 0) {
@@ -95,7 +97,8 @@ int BuildTreeDefs(const anodyne::File* source_content,
 
 /// \brief Emit matchers from `source_content` using `dest_file_prefix`
 /// to name output.
-int BuildMatchers(const anodyne::File* source_content,
+int BuildMatchers(const anodyne::Source& source,
+                  const anodyne::File* source_content,
                   absl::string_view dest_file_prefix) {
   anodyne::TtParser parser;
   if (!parser.ParseFile(source_content, true)) {
@@ -110,7 +113,7 @@ int BuildMatchers(const anodyne::File* source_content,
     perror(absl::StrCat("could not open ", m_path, ": ").c_str());
     return 1;
   }
-  if (!anodyne::TtGenerator::GenerateMatchers(parser, m_out)) {
+  if (!anodyne::TtGenerator::GenerateMatchers(parser, source, m_out)) {
     return 1;
   }
   if (fclose(m_out) != 0) {
@@ -152,7 +155,7 @@ int main(int argc, char** argv) {
     return 1;
   }
   if (source_file.rfind(".tt") != absl::string_view::npos) {
-    return BuildTreeDefs(source_content, dest_file_prefix);
+    return BuildTreeDefs(source, source_content, dest_file_prefix);
   }
-  return BuildMatchers(source_content, dest_file_prefix);
+  return BuildMatchers(source, source_content, dest_file_prefix);
 }
