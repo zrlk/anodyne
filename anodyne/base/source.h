@@ -136,6 +136,14 @@ class File {
   /// \brief Returns this file's ending location.
   Location end() const { return end_; }
 
+  /// \brief Returns an offset into this file's contents for a given location.
+  /// \return negative on failure.
+  int OffsetFor(Location loc) const {
+    if (loc.data() < begin_.data()) return -1;
+    if (end_.data() <= loc.data()) return -1;
+    return static_cast<int>(loc.data() - begin_.data());
+  }
+
   /// \brief Return this file's underlying buffer.
   const SourceBuffer& contents() const { return contents_; }
 

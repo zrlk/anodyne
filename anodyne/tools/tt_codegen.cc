@@ -133,9 +133,141 @@ bool TtGenerator::Generate() {
   return true;
 }
 
+bool TtGenerator::CompileSlowPatternAdmissibleCheck(const TtPat& pat,
+                                                    const std::string& path) {
+  switch (pat.kind) {
+    case TtPat::Kind::kCtorApp: {
+      fprintf(h_,
+              "(%s->tag() == "
+              "std::remove_reference<decltype(*(%s))>::type::Tag::k%s)",
+              path.c_str(), path.c_str(), pat.ident.c_str());
+      for (size_t c = 0; c < pat.children.size(); ++c) {
+        fprintf(h_, " && (");
+        if (!CompileSlowPatternAdmissibleCheck(
+                *(pat.children[c]), path + "->As" + pat.ident + "()->m_" +
+                                        std::to_string(c) + "_")) {
+          return false;
+        }
+        fprintf(h_, ")");
+      }
+    } break;
+    case TtPat::Kind::kVariable: {
+      fprintf(h_, "true");
+    } break;
+    case TtPat::Kind::kList: {
+      fprintf(h_, "(%s.size() == %lu)", path.c_str(), pat.children.size());
+      for (size_t c = 0; c < pat.children.size(); ++c) {
+        fprintf(h_, " && (");
+        if (!CompileSlowPatternAdmissibleCheck(
+                *(pat.children[c]), path + "[" + std::to_string(c) + "]")) {
+          return false;
+        }
+        fprintf(h_, ")");
+      }
+    } break;
+    case TtPat::Kind::kSome: {
+      fprintf(h_, "(%s.is_some()) && (", path.c_str());
+      if (!CompileSlowPatternAdmissibleCheck(*(pat.children[0]),
+                                             path + ".get()")) {
+        return false;
+      }
+      fprintf(h_, ")");
+    } break;
+    case TtPat::Kind::kNone: {
+      fprintf(h_, "(!%s.is_some())", path.c_str());
+    } break;
+  }
+  return true;
+}
+
+bool TtGenerator::CompileSlowPatternBindings(const TtPat& pat,
+                                             const std::string& path) {
+  switch (pat.kind) {
+    case TtPat::Kind::kCtorApp: {
+      for (size_t c = 0; c < pat.children.size(); ++c) {
+        if (!CompileSlowPatternBindings(*(pat.children[c]),
+                                        path + "->As" + pat.ident + "()->m_" +
+                                            std::to_string(c) + "_")) {
+          return false;
+        }
+      }
+    } break;
+    case TtPat::Kind::kVariable: {
+      if (pat.ident != "_") {
+        // Squelch "unused variable" noise.
+        fprintf(h_, "  const auto %s = %s; (void)%s; \\\n", pat.ident.c_str(),
+                path.c_str(), pat.ident.c_str());
+      }
+    } break;
+    case TtPat::Kind::kList: {
+      for (size_t c = 0; c < pat.children.size(); ++c) {
+        if (!CompileSlowPatternBindings(*(pat.children[c]),
+                                        path + "[" + std::to_string(c) + "]")) {
+          return false;
+        }
+      }
+    } break;
+    case TtPat::Kind::kNone: {
+      // nothing to be done
+    } break;
+    case TtPat::Kind::kSome: {
+      return CompileSlowPatternBindings(*(pat.children[0]), path + ".get()");
+    } break;
+  }
+  return true;
+}
+
+bool TtGenerator::CompileSlowPattern(const TtPat& pat,
+                                     const std::string& cont) {
+  fprintf(h_, " (");
+  if (!CompileSlowPatternAdmissibleCheck(pat, "__disc")) {
+    return false;
+  }
+  fprintf(h_, ") { \\\n");
+  if (!CompileSlowPatternBindings(pat, "__disc")) {
+    return false;
+  }
+  fprintf(h_, " %s } \\\n", cont.c_str());
+  return true;
+}
+
 bool TtGenerator::GenerateMatchers() {
   fprintf(h_, "#include <type_traits>\n");
-  // TODO: Write out pattern code.
+  for (const auto& matcher : parser_.matchers()) {
+    const auto* file = source_.FindFile(matcher->loc.begin);
+    if (file == nullptr) {
+      return Error(matcher->loc, "Missing file.");
+    }
+    int ofs = file->OffsetFor(matcher->loc.begin);
+    if (ofs < 0) {
+      return Error(matcher->loc, "Bad offset in file.");
+    }
+    auto line_col = file->contents().Utf8LineColForOffset(ofs);
+    fprintf(h_, "#define __match_%d(__indisc", line_col.first + 1);
+    for (size_t c = 0; c < matcher->clauses.size(); ++c) {
+      fprintf(h_, ", __case%lu", c);
+    }
+    fprintf(h_, ") \\\n");
+    fprintf(h_, "  (([&](decltype(__indisc) __disc) { \\\n");
+    for (size_t c = 0; c < matcher->clauses.size(); ++c) {
+      if (c == 0) {
+        fprintf(h_, "  if ");
+      } else {
+        fprintf(h_, "  else if ");
+      }
+      if (!CompileSlowPattern(*matcher->clauses[c]->pat,
+                              "return __case" + std::to_string(c) + ";")) {
+        return false;
+      }
+    }
+    fprintf(h_, "  abort(); })(__indisc))\n");
+  }
+  fprintf(h_, R"(#ifndef __match
+#define __match_dispatch_id(id) __match_##id
+#define __match_dispatch(id, ...) __match_dispatch_id(id)(__VA_ARGS__)
+#define __match(...) __match_dispatch(__LINE__, __VA_ARGS__)
+#endif
+)");
   return true;
 }
 

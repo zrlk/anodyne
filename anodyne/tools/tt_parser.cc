@@ -310,8 +310,10 @@ void TtParser::ScanBeginString(absl::string_view data, bool trace_scanning,
       // Erase a BCPL comment.
       case CleanState::kBcplComment:
         if (c0 == '\n') {
-          state = CleanState::kEntry;
           yy_buf.push_back(c0);
+          state = CleanState::kEntry;
+        } else {
+          yy_buf.push_back(' ');
         }
         break;
       // Erase a block comment.

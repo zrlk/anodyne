@@ -86,6 +86,17 @@ class TtGenerator {
   /// have kIdentifier kind.
   /// \return false on failure.
   bool DecomposeIdentType(const TtTypeNode& type, std::vector<Type>* type_out);
+  /// \brief Compile an unoptimized check that `pat` matches `path`.
+  /// \return false on failure.
+  bool CompileSlowPatternAdmissibleCheck(const TtPat& pat,
+                                         const std::string& path);
+  /// \brief Compile unoptimized bindings mapping variables in `pat` to `path`.
+  /// \return false on failure.
+  bool CompileSlowPatternBindings(const TtPat& pat, const std::string& path);
+  /// \brief Compile the pattern `pat`, inserting `cont` into an environment
+  /// where its variables have been bound.
+  /// \return false on failure.
+  bool CompileSlowPattern(const TtPat& pat, const std::string& cont);
   /// \brief Print an error to stderr.
   /// \return false.
   bool Error(Range range, absl::string_view message);
