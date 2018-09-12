@@ -1,6 +1,16 @@
 package(default_visibility = ["//anodyne:default_visibility"])
 
 cc_library(
+    name = "digest",
+    srcs = ["digest.cc"],
+    hdrs = ["digest.h"],
+    deps = [
+      "@com_google_absl//absl/strings",
+      "@boringssl//:crypto",
+    ],
+)
+
+cc_library(
     name = "fs",
     srcs = [
         "fs.cc",

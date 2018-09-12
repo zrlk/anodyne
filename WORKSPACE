@@ -76,3 +76,12 @@ http_archive(
     sha256 = "8b68d0630d63d95dacc0016c3bb4b76154fe34fca93efd65d1c366de3fcb4294",
     url = "https://github.com/bazelbuild/rules_go/releases/download/0.12.1/rules_go-0.12.1.tar.gz",
 )
+
+http_archive(
+    name = "boringssl",  # Must match upstream workspace name.
+    # Gitiles creates gzip files with an embedded timestamp, so we cannot use
+    # sha256 to validate the archives.  We must rely on the commit hash and https.
+    # Commits must come from the master-with-bazel branch.
+    url = "https://boringssl.googlesource.com/boringssl/+archive/4be3aa87917b20fedc45fa1fc5b6a2f3738612ad.tar.gz",
+)
+
