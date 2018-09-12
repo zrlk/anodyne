@@ -85,3 +85,11 @@ http_archive(
     url = "https://boringssl.googlesource.com/boringssl/+archive/4be3aa87917b20fedc45fa1fc5b6a2f3738612ad.tar.gz",
 )
 
+new_http_archive(
+    name = "com_github_tencent_rapidjson",
+    build_file = "third_party/rapidjson.BUILD",
+    sha256 = "8e00c38829d6785a2dfb951bb87c6974fa07dfe488aa5b25deec4b8bc0f6a3ab",
+    strip_prefix = "rapidjson-1.1.0",
+    url = "https://github.com/Tencent/rapidjson/archive/v1.1.0.zip",
+)
+
