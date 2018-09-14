@@ -11,6 +11,24 @@ cc_library(
 )
 
 cc_library(
+    name = "memfs",
+    srcs = ["memfs.cc"],
+    hdrs = ["memfs.h"],
+    deps = [
+        ":fs",
+    ]
+)
+
+cc_test(
+    name = "memfs_test",
+    srcs = ["memfs_test.cc"],
+    deps = [
+        ":memfs",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_library(
     name = "fs",
     srcs = [
         "fs.cc",
