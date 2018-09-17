@@ -24,6 +24,9 @@
 
 namespace anodyne {
 
+/// \brief Different flavors of files.
+enum class FileKind { kRegular, kDirectory };
+
 /// \brief Maps paths to file content.
 class FileSystem {
  public:
@@ -34,9 +37,17 @@ class FileSystem {
   /// \param path path to inspect.
   /// \return the file content, on success.
   virtual StatusOr<std::string> GetFileContent(absl::string_view path) = 0;
+  /// \brief Retrieve the file kind at `path`.
+  /// \param path the path to inspect.
+  /// \return the file kind, on success.
+  ///
+  /// Note that intermediate directories will not be automatically created.
+  virtual StatusOr<FileKind> GetFileKind(absl::string_view path) = 0;
   /// \brief Gets the current working directory (which is the directory that
   /// relative paths are implicitly concatenated with) as an absolute path.
   virtual absl::optional<Path> GetWorkingDirectory() = 0;
+  /// \brief tries to make a clean, absolute path from a string.
+  StatusOr<Path> MakeCleanAbsolutePath(absl::string_view path);
 };
 
 /// \brief Maps paths to file content on the local machine's filesystem.
@@ -46,6 +57,7 @@ class RealFileSystem : public FileSystem {
   RealFileSystem(RealFileSystem&) = delete;
   RealFileSystem& operator=(RealFileSystem&) = delete;
   StatusOr<std::string> GetFileContent(absl::string_view path) override;
+  StatusOr<FileKind> GetFileKind(absl::string_view path) override;
   absl::optional<Path> GetWorkingDirectory() override;
 };
 

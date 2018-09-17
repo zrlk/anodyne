@@ -22,26 +22,25 @@ namespace anodyne {
 StatusOr<std::string> MemoryFileSystem::GetFileContent(absl::string_view path) {
   auto cleaned = MakeCleanAbsolutePath(path);
   if (!cleaned) {
-    return cleaned;
+    return cleaned.status();
   }
-  const auto it = files_.find(*cleaned);
+  const auto it = files_.find(cleaned->get());
   if (it == files_.end()) {
     return UnknownError(absl::StrCat("Couldn't find ", path));
   }
-  return it->second;
+  return it->second.content;
 }
 
-StatusOr<std::string> MemoryFileSystem::MakeCleanAbsolutePath(
-    absl::string_view path) {
-  auto cleaned = Path::Clean(path);
-  if (cleaned.is_absolute()) {
-    return cleaned.get();
+StatusOr<FileKind> MemoryFileSystem::GetFileKind(absl::string_view path) {
+  auto cleaned = MakeCleanAbsolutePath(path);
+  if (!cleaned) {
+    return cleaned.status();
   }
-  auto absolute = cwd_.Concat(path);
-  if (!absolute) {
-    return UnknownError(absl::StrCat("Bad path ", path));
+  const auto it = files_.find(cleaned->get());
+  if (it == files_.end()) {
+    return UnknownError(absl::StrCat("Couldn't find ", path));
   }
-  return absolute->get();
+  return it->second.kind;
 }
 
 Status MemoryFileSystem::SetWorkingDirectory(absl::string_view path) {
@@ -49,7 +48,7 @@ Status MemoryFileSystem::SetWorkingDirectory(absl::string_view path) {
   if (!cleaned.ok()) {
     return cleaned.status();
   }
-  cwd_ = Path::Clean(*cleaned);
+  cwd_ = *cleaned;
   return OkStatus();
 }
 
@@ -59,7 +58,25 @@ Status MemoryFileSystem::InsertFile(absl::string_view path,
   if (!cleaned) {
     return UnknownError(absl::StrCat("Bad path ", path));
   }
-  files_[*cleaned] = std::string(content);
+  auto previous = files_.find(cleaned->get());
+  if (previous != files_.end() &&
+      previous->second.kind == FileKind::kDirectory) {
+    return UnknownError(absl::StrCat("Already a directory: ", path));
+  }
+  files_[cleaned->get()] = File{FileKind::kRegular, std::string(content)};
+  return OkStatus();
+}
+
+Status MemoryFileSystem::InsertDirectory(absl::string_view path) {
+  auto cleaned = MakeCleanAbsolutePath(path);
+  if (!cleaned) {
+    return UnknownError(absl::StrCat("Bad path ", path));
+  }
+  auto previous = files_.find(cleaned->get());
+  if (previous != files_.end() && previous->second.kind == FileKind::kRegular) {
+    return UnknownError(absl::StrCat("Already a file: ", path));
+  }
+  files_[cleaned->get()] = File{FileKind::kDirectory, ""};
   return OkStatus();
 }
 

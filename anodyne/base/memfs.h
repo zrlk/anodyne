@@ -31,22 +31,34 @@ class MemoryFileSystem : public FileSystem {
   MemoryFileSystem& operator=(MemoryFileSystem&) = delete;
   StatusOr<std::string> GetFileContent(absl::string_view path) override;
   absl::optional<Path> GetWorkingDirectory() override { return cwd_; }
+  StatusOr<FileKind> GetFileKind(absl::string_view path) override;
 
   /// \brief adds (or replaces) a file in the filesystem.
   /// \param path the destination path; if it's relative, it will be
   /// made absolute using the current working directory.
   /// \param content the file's content.
+  ///
+  /// If there is a directory at `path`, `InsertFile` will fail.
   Status InsertFile(absl::string_view path, absl::string_view content);
+  /// \brief adds (or replaces) a directory in the filesystem.
+  /// \param path the destination path; if it's relative, it will be
+  /// made absolute using the current working directory.
+  ///
+  /// If there is a file at `path`, `InsertDirectory` will fail.
+  Status InsertDirectory(absl::string_view path);
+
   /// \brief sets the working directory to `path`.
   Status SetWorkingDirectory(absl::string_view path);
 
  private:
-  /// \brief tries to make a clean, absolute path from a string.
-  StatusOr<std::string> MakeCleanAbsolutePath(absl::string_view path);
+  struct File {
+    FileKind kind;
+    std::string content;
+  };
   /// The current working directory, if there is one.
   Path cwd_;
-  /// A map from absolute clean paths to file content.
-  std::unordered_map<std::string, std::string> files_;
+  /// A map from absolute clean paths to files.
+  std::unordered_map<std::string, File> files_;
 };
 
 }  // namespace anodyne

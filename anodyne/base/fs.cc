@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#include "absl/strings/str_cat.h"
 #include "anodyne/base/fs.h"
+#include "absl/strings/str_cat.h"
 
 #include <fcntl.h>
 #include <sys/stat.h>
@@ -23,6 +23,22 @@
 #include <unistd.h>
 
 namespace anodyne {
+StatusOr<Path> FileSystem::MakeCleanAbsolutePath(absl::string_view path) {
+  auto cleaned = Path::Clean(path);
+  if (cleaned.is_absolute()) {
+    return cleaned;
+  }
+  auto cwd = GetWorkingDirectory();
+  if (!cwd) {
+    return UnknownError("Couldn't get working directory");
+  }
+  auto absolute = cwd->Concat(path);
+  if (!absolute) {
+    return UnknownError(absl::StrCat("Bad path ", path));
+  }
+  return *absolute;
+}
+
 StatusOr<std::string> RealFileSystem::GetFileContent(absl::string_view path) {
   auto filename = std::string(path);
   int fd = ::open(filename.c_str(), 0);
@@ -41,6 +57,21 @@ StatusOr<std::string> RealFileSystem::GetFileContent(absl::string_view path) {
   }
   ::close(fd);
   return out;
+}
+
+StatusOr<FileKind> RealFileSystem::GetFileKind(absl::string_view path) {
+  struct stat buf;
+  int stat_ok = ::stat(std::string(path).c_str(), &buf);
+  if (stat_ok < 0) {
+    return UnknownError(absl::StrCat("Couldn't stat input path ", path));
+  }
+  if (S_ISDIR(buf.st_mode)) {
+    return FileKind::kDirectory;
+  }
+  if (S_ISREG(buf.st_mode)) {
+    return FileKind::kRegular;
+  }
+  return UnknownError(absl::StrCat("Unsupported file kind at ", path));
 }
 
 absl::optional<Path> RealFileSystem::GetWorkingDirectory() {
