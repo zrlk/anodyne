@@ -99,6 +99,7 @@ StatusOr<T>& StatusOr<T>::operator=(const Status& status) {
   this->status_ = status;
   this->value_.reset();
   DCHECK(!this->ok());
+  return *this;
 }
 
 template <typename T>
@@ -106,18 +107,21 @@ StatusOr<T>& StatusOr<T>::operator=(Status&& status) {
   this->status_ = std::move(status);
   this->value_.reset();
   DCHECK(!this->ok());
+  return *this;
 }
 
 template <typename T>
 StatusOr<T>& StatusOr<T>::operator=(const T& value) {
   this->value_ = value;
   this->status_ = OkStatus();
+  return *this;
 }
 
 template <typename T>
 StatusOr<T>& StatusOr<T>::operator=(T&& value) {
   this->value_ = std::move(value);
   this->status_ = OkStatus();
+  return *this;
 }
 
 template <typename T>

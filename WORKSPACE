@@ -66,8 +66,8 @@ new_http_archive(
 
 http_archive(
     name = "io_kythe",
-    url = "https://github.com/google/kythe/archive/c062cfcbeea8de56c0a20ebb12deb74deb1a016d.zip",
-    strip_prefix = "kythe-c062cfcbeea8de56c0a20ebb12deb74deb1a016d",
+    url = "https://github.com/google/kythe/archive/b1b1ca47db19c26888c2c065f3031b50fa94a486.zip",
+    strip_prefix = "kythe-b1b1ca47db19c26888c2c065f3031b50fa94a486",
 )
 
 # Required by io_kythe
@@ -77,6 +77,28 @@ http_archive(
     url = "https://github.com/bazelbuild/rules_go/releases/download/0.12.1/rules_go-0.12.1.tar.gz",
 )
 
+new_http_archive(
+    name = "com_github_tencent_rapidjson",
+    build_file = "third_party/rapidjson.BUILD",
+    sha256 = "8e00c38829d6785a2dfb951bb87c6974fa07dfe488aa5b25deec4b8bc0f6a3ab",
+    strip_prefix = "rapidjson-1.1.0",
+    url = "https://github.com/Tencent/rapidjson/archive/v1.1.0.zip",
+)
+
+# Required by io_kythe
+new_http_archive(
+    name = "org_libzip",
+    build_file = "third_party/libzip.BUILD",
+    sha256 = "a5d22f0c87a2625450eaa5e10db18b8ee4ef17042102d04c62e311993a2ba363",
+    strip_prefix = "libzip-rel-1-5-1",
+    urls = [
+        # Bazel does not like the official download link at libzip.org,
+        # so use the GitHub release tag.
+        "https://github.com/nih-at/libzip/archive/rel-1-5-1.zip",
+    ],
+)
+
+# Required by io_kythe
 http_archive(
     name = "boringssl",  # Must match upstream workspace name.
     # Gitiles creates gzip files with an embedded timestamp, so we cannot use
@@ -92,4 +114,3 @@ new_http_archive(
     strip_prefix = "rapidjson-1.1.0",
     url = "https://github.com/Tencent/rapidjson/archive/v1.1.0.zip",
 )
-
