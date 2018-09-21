@@ -26,6 +26,7 @@
 #include "kythe/cxx/common/status_or.h"
 #include "kythe/proto/analysis.pb.h"
 
+#include <deque>
 #include <memory>
 #include <unordered_map>
 
@@ -77,10 +78,31 @@ class NpmExtractorPass {
   /// \param root absolute path to the package's root directory.
   void AddRootPackage(const Path& root) {
     NpmPackage* package = AddPackage(root, true);
-    if (package) {
-      VNameForPackage(*package, unit()->mutable_v_name());
+    if (package == nullptr) {
+      return;
     }
+    VNameForPackage(*package, unit()->mutable_v_name());
+    auto deps = *root.Concat("node_modules");
+    do {
+      while (!dependencies_.empty()) {
+        auto& dep = dependencies_.front();
+        if (packages_.find(dep.package_id) == packages_.end()) {
+          if (dep.package_id.find("/") != std::string::npos) {
+            LOG(WARNING) << "invalid package id (contains /)";
+            had_errors_ = true;
+            dependencies_.pop_front();
+            continue;
+          }
+          AddPackage(*deps.Concat(dep.package_id), false);
+        }
+        dependencies_.pop_front();
+        if (package == nullptr) {
+          return;
+        }
+      }
+    } while (!dependencies_.empty());
   }
+
   /// \brief Write out the compilation.
   /// \return false if there were errors.
   bool Complete() {
@@ -150,7 +172,10 @@ class NpmExtractorPass {
     base_vname.set_path(rel_path->get());
     AddFile(rel_path->get(), *maybe_content, base_vname);
     if (!AddMainSourceFile(base_vname, *parsed, root, is_root)) return nullptr;
-    auto id = absl::StrCat(parsed->name(), "@", parsed->version());
+    for (const auto& dep : parsed->dependencies()) {
+      dependencies_.push_back(dep);
+    }
+    auto id = parsed->name();
     packages_[id] = std::move(parsed);
     return packages_[id].get();
   }
@@ -171,19 +196,86 @@ class NpmExtractorPass {
     auto path = root.Relativize(*local_path);
     if (!path) return true;
     auto maybe_content = fs_->GetFileContent(local_path->get());
+    kythe::proto::VName file_vname = base_vname;
     if (maybe_content) {
-      kythe::proto::VName main_vname = base_vname;
-      main_vname.set_path(path->get());
-      AddFile(path->get(), *maybe_content, main_vname);
+      file_vname.set_path(path->get());
+      AddFile(path->get(), *maybe_content, file_vname);
       if (is_root) {
         unit()->add_source_file(path->get());
       }
-      return true;
     } else {
       LOG(WARNING) << "reading " << local_path->get() << ": "
                    << maybe_content.status();
       had_errors_ = true;
       return false;
+    }
+    // TODO: There are other ways to link source maps (e.g., some
+    // compilers will add "//# sourceMappingURL=/foo/bar/baz.map"
+    // to the generated .js file).
+    auto source_map_path = local_path->get() + ".map";
+    maybe_content = fs_->GetFileContent(source_map_path);
+    if (!maybe_content) return true;
+    LOG(INFO) << "found a source map for " << local_path->get();
+    SourceMap map;
+    if (map.ParseFromJson(source_map_path, *maybe_content, false)) {
+      file_vname.set_path(path->get() + ".map");
+      AddFile(path->get() + ".map", *maybe_content, file_vname);
+      auto parent = path->Parent();
+      if (parent) {
+        AddSourceMapSources(root, *parent, map, file_vname);
+      } else {
+        LOG(WARNING) << "no parent for " << path->get();
+      }
+    } else {
+      LOG(WARNING) << "failed to parse " << local_path->get();
+    }
+    return true;
+  }
+
+  /// \param package_local_root root directory for the package on the local
+  /// machine (`/foo/bar/node_modules/bam`)
+  /// \param source_map_parent directory containing the source map relative to
+  /// package_root (`build`)
+  void AddSourceMapSources(const Path& package_local_root,
+                           const Path& source_map_parent, const SourceMap& map,
+                           const kythe::proto::VName& base_vname) {
+    auto local_parent_path_maybe =
+        package_local_root.Concat(source_map_parent.get());
+    if (!local_parent_path_maybe) {
+      LOG(WARNING) << "Bad source map paths. local root: "
+                   << package_local_root.get()
+                   << " parent: " << source_map_parent.get();
+      return;
+    }
+    auto local_parent_path = *local_parent_path_maybe;
+    kythe::proto::VName map_vname = base_vname;
+    for (const auto& file : map.sources()) {
+      auto fixed_path = local_parent_path.Concat(file.path);
+      if (!fixed_path) {
+        LOG(WARNING) << "Bad file path: " << file.path;
+        continue;
+      }
+      auto rel_path = package_local_root.Relativize(*fixed_path);
+      if (!rel_path) {
+        LOG(WARNING) << "Couldn't relativize path: " << file.path;
+        continue;
+      }
+      map_vname.set_path(rel_path->get());
+      if (!file.content.empty()) {
+        AddFile(rel_path->get(), file.content, map_vname);
+        LOG(INFO) << "Adding source map source with content "
+                  << rel_path->get();
+      } else {
+        std::string data;
+        auto maybe_content = fs_->GetFileContent(fixed_path->get());
+        if (maybe_content) {
+          LOG(INFO) << "adding source map " << rel_path->get();
+          AddFile(rel_path->get(), data, map_vname);
+        } else {
+          LOG(WARNING) << "getting source map " << rel_path->get() << ": "
+                       << maybe_content.status();
+        }
+      }
     }
   }
 
@@ -212,7 +304,7 @@ class NpmExtractorPass {
 
   /// The filesystem to use. Unowned.
   FileSystem* fs_;
-  /// Packages we've loaded, indexed by name@version.
+  /// Packages we've loaded, indexed by name.
   std::unordered_map<std::string, std::unique_ptr<NpmPackage>> packages_;
   /// The compilation we're building.
   kythe::proto::IndexedCompilation compilation_;
@@ -220,6 +312,8 @@ class NpmExtractorPass {
   kythe::IndexWriter sink_;
   /// Whether we had errors.
   bool had_errors_ = false;
+  /// Dependencies to be processed.
+  std::deque<NpmDependency> dependencies_;
 };
 }  // anonymous namespace
 
