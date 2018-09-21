@@ -30,6 +30,19 @@ struct MemoryIndex {
   std::map<std::string, std::string> files;
   /// Whether this index was closed.
   bool closed = false;
+  /// Convenience function to get a particular unit.
+  const kythe::proto::IndexedCompilation* GetUnit(
+      const std::string& hash) const {
+    auto it = units.find(hash);
+    if (it == units.end()) return nullptr;
+    return &it->second;
+  }
+  /// Convenience function to get a particular file.
+  const std::string* GetFile(const std::string& hash) const {
+    auto it = files.find(hash);
+    if (it == files.end()) return nullptr;
+    return &it->second;
+  }
 };
 
 /// \brief Wraps a MemoryIndex.
@@ -68,6 +81,7 @@ class ExtractorTest {
         root_path);
   }
   const MemoryIndex& index() { return index_; }
+  MemoryFileSystem* memfs() { return &memfs_; }
 
  private:
   MemoryFileSystem memfs_;
@@ -78,6 +92,53 @@ TEST(ExtractorTest, NoPackageJson) {
   ExtractorTest xt;
   EXPECT_FALSE(xt.Run("root"));
   EXPECT_FALSE(xt.index().closed);
+}
+
+TEST(ExtractorTest, BadPackageJson) {
+  ExtractorTest xt;
+  ASSERT_TRUE(xt.memfs()->InsertDirectory("root").ok());
+  ASSERT_TRUE(xt.memfs()->InsertFile("root/package.json", "!").ok());
+  EXPECT_FALSE(xt.Run("root"));
+  EXPECT_FALSE(xt.index().closed);
+}
+
+constexpr char kHelloWorld[] = R"(
+"hello, world";
+)";
+
+TEST(ExtractorTest, NoDependencies) {
+  ExtractorTest xt;
+  ASSERT_TRUE(xt.memfs()->InsertDirectory("root").ok());
+  ASSERT_TRUE(xt.memfs()
+                  ->InsertFile("root/package.json", R"(
+{
+  "name": "indexme",
+  "version": "1.0.0",
+  "description": "please index me",
+  "main": "index.js"
+}
+)")
+                  .ok());
+  ASSERT_TRUE(xt.memfs()->InsertFile("root/index.js", kHelloWorld).ok());
+  EXPECT_TRUE(xt.Run("root"));
+  EXPECT_TRUE(xt.index().closed);
+  ASSERT_EQ(1, xt.index().units.size());
+  auto* unit = &xt.index().units.begin()->second;
+  ASSERT_EQ(2, unit->unit().required_input_size());
+  EXPECT_EQ("npm/indexme@1.0.0", unit->unit().v_name().corpus());
+  bool found_index = false;
+  bool found_package = false;
+  for (const auto& ri : unit->unit().required_input()) {
+    if (ri.info().path() == "index.js") {
+      auto* file = xt.index().GetFile(ri.info().digest());
+      ASSERT_FALSE(file == nullptr);
+      EXPECT_EQ(kHelloWorld, *file);
+      found_index = true;
+    }
+    if (ri.info().path() == "package.json") found_package = true;
+  }
+  EXPECT_TRUE(found_index);
+  EXPECT_TRUE(found_package);
 }
 }  // anonymous namespace
 }  // namespace anodyne
