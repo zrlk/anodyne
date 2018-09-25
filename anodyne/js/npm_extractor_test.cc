@@ -140,5 +140,105 @@ TEST(ExtractorTest, NoDependencies) {
   EXPECT_TRUE(found_index);
   EXPECT_TRUE(found_package);
 }
+
+TEST(ExtractorTest, Dependencies) {
+  ExtractorTest xt;
+  ASSERT_TRUE(xt.memfs()->InsertDirectory("root").ok());
+  ASSERT_TRUE(xt.memfs()->InsertDirectory("root/node_modules").ok());
+  ASSERT_TRUE(xt.memfs()->InsertDirectory("root/node_modules/a").ok());
+  ASSERT_TRUE(xt.memfs()->InsertDirectory("root/node_modules/b").ok());
+  ASSERT_TRUE(xt.memfs()->InsertDirectory("root/node_modules/c").ok());
+  ASSERT_TRUE(xt.memfs()
+                  ->InsertFile("root/package.json", R"(
+{
+  "name": "root",
+  "version": "1.0.0",
+  "main": "index.js",
+  "dependencies": {
+    "a": "^2.0.0"
+  }
+}
+)")
+                  .ok());
+  ASSERT_TRUE(xt.memfs()
+                  ->InsertFile("root/node_modules/a/package.json", R"(
+{
+  "name": "a",
+  "version": "2.1.0",
+  "main": "index.js",
+  "dependencies": {
+    "b": "^2.0.0",
+    "c": "^2.0.0"
+  }
+}
+)")
+                  .ok());
+  ASSERT_TRUE(xt.memfs()
+                  ->InsertFile("root/node_modules/b/package.json", R"(
+{
+  "name": "b",
+  "version": "2.2.0",
+  "main": "index.js",
+  "dependencies": {
+    "c": "^2.0.0"
+  }
+}
+)")
+                  .ok());
+  ASSERT_TRUE(xt.memfs()
+                  ->InsertFile("root/node_modules/c/package.json", R"(
+{
+  "name": "c",
+  "version": "2.3.0",
+  "main": "index.js"
+}
+)")
+                  .ok());
+  ASSERT_TRUE(xt.memfs()->InsertFile("root/index.js", "root").ok());
+  ASSERT_TRUE(xt.memfs()->InsertFile("root/node_modules/a/index.js", "a").ok());
+  ASSERT_TRUE(xt.memfs()->InsertFile("root/node_modules/b/index.js", "b").ok());
+  ASSERT_TRUE(xt.memfs()->InsertFile("root/node_modules/c/index.js", "c").ok());
+  EXPECT_TRUE(xt.Run("root"));
+  EXPECT_TRUE(xt.index().closed);
+  ASSERT_EQ(1, xt.index().units.size());
+  auto* unit = &xt.index().units.begin()->second;
+  EXPECT_EQ(8, unit->unit().required_input_size());
+}
+
+TEST(ExtractorTest, SourceMap) {
+  ExtractorTest xt;
+  ASSERT_TRUE(xt.memfs()->InsertDirectory("root").ok());
+  ASSERT_TRUE(xt.memfs()->InsertDirectory("root/src").ok());
+  ASSERT_TRUE(xt.memfs()
+                  ->InsertFile("root/package.json", R"(
+{
+  "name": "root",
+  "version": "1.0.0",
+  "main": "index.js"
+}
+)")
+                  .ok());
+  ASSERT_TRUE(xt.memfs()->InsertFile("root/index.js", "root").ok());
+  ASSERT_TRUE(xt.memfs()
+                  ->InsertFile("root/index.js.map", R"(
+    {
+      "version": 3,
+      "file": "index.js",
+      "sourceRoot": "",
+      "sources": ["src/index.sj"],
+      "sourcesContent": [null],
+      "names": [],
+      "mappings": ""
+    }
+)")
+                  .ok());
+  ASSERT_TRUE(xt.memfs()->InsertFile("root/src/index.sj", "toor").ok());
+  EXPECT_TRUE(xt.Run("root"));
+  EXPECT_TRUE(xt.index().closed);
+  ASSERT_EQ(1, xt.index().units.size());
+  auto* unit = &xt.index().units.begin()->second;
+  EXPECT_EQ(4, unit->unit().required_input_size());
+}
+
 }  // anonymous namespace
 }  // namespace anodyne
