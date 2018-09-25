@@ -68,6 +68,9 @@ absl::optional<Path> FindNpmDirectory(FileSystem* fs,
 /// Add the package root(s) by calling AddRootPackage with the paths to
 /// the directories containing their package.json manifests. Then call
 /// Complete() to write out the data.
+///
+/// Currently supports source maps when the map files have the same paths as
+/// the generated files they describe, but with ".map" appended to the end.
 class NpmExtractorPass {
  public:
   NpmExtractorPass(FileSystem* fs, kythe::IndexWriter sink)
@@ -83,6 +86,7 @@ class NpmExtractorPass {
     }
     VNameForPackage(*package, unit()->mutable_v_name());
     auto deps = *root.Concat("node_modules");
+    // Add each dependency we discover, skipping those we've already added.
     do {
       while (!dependencies_.empty()) {
         auto& dep = dependencies_.front();
@@ -103,8 +107,10 @@ class NpmExtractorPass {
     } while (!dependencies_.empty());
   }
 
-  /// \brief Write out the compilation.
-  /// \return false if there were errors.
+  /// \brief Write out the compilation, including source maps and original
+  /// source files if they could be found.
+  /// \return false if there were errors. Missing source map data is not
+  /// considered to be an error.
   bool Complete() {
     if (had_errors_) {
       return false;
@@ -211,7 +217,9 @@ class NpmExtractorPass {
     }
     // TODO: There are other ways to link source maps (e.g., some
     // compilers will add "//# sourceMappingURL=/foo/bar/baz.map"
-    // to the generated .js file).
+    // to the generated .js file). This code currently supports source maps
+    // that are placed next to their generated files with ".map" added to
+    // the end of the generated filename.
     auto source_map_path = local_path->get() + ".map";
     maybe_content = fs_->GetFileContent(source_map_path);
     if (!maybe_content) return true;
@@ -224,7 +232,8 @@ class NpmExtractorPass {
       if (parent) {
         AddSourceMapSources(root, *parent, map, file_vname);
       } else {
-        LOG(WARNING) << "no parent for " << path->get();
+        LOG(WARNING) << "no parent for " << path->get()
+                     << " in the source map for " << local_path->get();
       }
     } else {
       LOG(WARNING) << "failed to parse " << local_path->get();
