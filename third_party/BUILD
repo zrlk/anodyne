@@ -1,7 +1,5 @@
 package(default_visibility = ["//visibility:public"])
 
-exports_files(glob(["googlelog.BUILD"]))
-
 alias(
     name = "gtest",
     actual = "@com_google_googletest//:gtest",
